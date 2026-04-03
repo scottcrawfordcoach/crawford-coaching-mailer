@@ -3,14 +3,19 @@ import { NextResponse } from "next/server";
 
 const COOKIE_NAME = "cc-mail-session";
 
+function normalizeSecret(value?: string): string {
+  return (value ?? "").trim().replace(/^['\"]|['\"]$/g, "");
+}
+
 export function checkSession(): boolean {
   const cookieStore = cookies();
   const session = cookieStore.get(COOKIE_NAME);
-  return !!session?.value && session.value === process.env.TOOL_PASSWORD;
+  const expected = normalizeSecret(process.env.TOOL_PASSWORD);
+  return !!session?.value && normalizeSecret(session.value) === expected;
 }
 
 export function setSessionCookie(res: NextResponse, password: string): void {
-  res.cookies.set(COOKIE_NAME, password, {
+  res.cookies.set(COOKIE_NAME, normalizeSecret(password), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",

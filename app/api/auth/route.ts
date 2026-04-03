@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkSession, setSessionCookie } from "@/lib/auth";
 
+function normalizeSecret(value?: string): string {
+  return (value ?? "").trim().replace(/^['\"]|['\"]$/g, "");
+}
+
 export async function POST(req: NextRequest) {
   const { password } = await req.json();
+  const provided = normalizeSecret(password);
+  const expected = normalizeSecret(process.env.TOOL_PASSWORD);
 
-  if (!password || password !== process.env.TOOL_PASSWORD) {
+  if (!provided || provided !== expected) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
-  setSessionCookie(res, password);
+  setSessionCookie(res, provided);
   return res;
 }
 
