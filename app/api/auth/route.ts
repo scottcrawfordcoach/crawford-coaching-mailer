@@ -10,6 +10,13 @@ export async function POST(req: NextRequest) {
   const provided = normalizeSecret(password);
   const expected = normalizeSecret(process.env.TOOL_PASSWORD);
 
+  if (!expected) {
+    return NextResponse.json(
+      { error: "TOOL_PASSWORD is not configured on this deployment" },
+      { status: 500 }
+    );
+  }
+
   if (!provided || provided !== expected) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }

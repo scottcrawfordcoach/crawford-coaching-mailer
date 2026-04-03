@@ -24,7 +24,8 @@ export default function LoginPage() {
     if (res.ok) {
       router.push("/compose");
     } else {
-      setError("Incorrect password.");
+      const data = await res.json().catch(() => null);
+      setError(data?.error || "Login failed.");
     }
   }
 
