@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Crawford Coaching — Newsletter Content Form</title>
+<style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+        --ink:        #0e0f10;
+        --slate:      #1c2330;
+        --slate-mid:  #232f3e;
+        --fog:        #3d4a58;
+        --mist:       #7a8fa3;
+        --pale:       #c8d4de;
+        --white:      #f5f3ef;
+        --blue:       #2d86c4;
+        --blue-dim:   rgba(45,134,196,0.15);
+        --blue-border:rgba(45,134,196,0.35);
+        --divider:    rgba(45,134,196,0.12);
+    }
+
+    html { font-size: 15px; }
+
+    body {
+        background: var(--ink);
+        color: var(--pale);
+        font-family: Georgia, 'Times New Roman', serif;
+        min-height: 100vh;
+        padding: 0 0 80px 0;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+        background: var(--slate);
+        border-bottom: 1px solid var(--blue-border);
+        padding: 28px 40px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+    }
+    .page-header h1 {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--white);
+        letter-spacing: 0.01em;
+    }
+    .page-header p {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--mist);
+        margin-top: 4px;
+    }
+    .export-btn {
+        background: transparent;
+        border: 1px solid var(--blue-border);
+        color: var(--pale);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 10px 24px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .export-btn:hover { background: var(--blue-dim); border-color: var(--blue); }
+
+    /* ── Layout ── */
+    .form-body { max-width: 760px; margin: 0 auto; padding: 40px 24px 0; }
+
+    /* ── Section blocks ── */
+    .section {
+        background: var(--slate);
+        border: 1px solid var(--divider);
+        margin-bottom: 28px;
+    }
+    .section-header {
+        padding: 18px 24px 16px;
+        border-bottom: 1px solid var(--divider);
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+    }
+    .section-tag {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--blue);
+    }
+    .section-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--white);
+    }
+    .section-note {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        color: var(--mist);
+        margin-top: 4px;
+        line-height: 1.5;
+    }
+    .section-body { padding: 20px 24px; }
+
+    /* ── Field groups ── */
+    .field-group {
+        margin-bottom: 20px;
+    }
+    .field-group:last-child { margin-bottom: 0; }
+
+    .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .field-row:last-child { margin-bottom: 0; }
+    .field-row .field-group { margin-bottom: 0; }
+
+    label {
+        display: block;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--pale);
+        margin-bottom: 6px;
+    }
+    .field-hint {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        color: var(--mist);
+        margin-bottom: 7px;
+        line-height: 1.5;
+        font-style: italic;
+    }
+    input[type="text"],
+    input[type="url"],
+    textarea,
+    select {
+        width: 100%;
+        background: var(--slate-mid);
+        border: 1px solid var(--fog);
+        color: var(--white);
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 14px;
+        line-height: 1.6;
+        padding: 10px 14px;
+        outline: none;
+        resize: vertical;
+        transition: border-color 0.15s;
+        -webkit-appearance: none;
+    }
+    input[type="text"]:focus,
+    input[type="url"]:focus,
+    textarea:focus,
+    select:focus {
+        border-color: var(--blue);
+        background: #1e2a3a;
+    }
+    input::placeholder, textarea::placeholder { color: var(--fog); font-style: italic; }
+    textarea { min-height: 110px; }
+    textarea.tall { min-height: 220px; }
+    textarea.short { min-height: 70px; }
+
+    select option { background: var(--slate-mid); }
+
+    /* ── Optional toggle ── */
+    .optional-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+        cursor: pointer;
+        user-select: none;
+    }
+    .optional-toggle input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--blue);
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .optional-toggle span {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 12px;
+        color: var(--mist);
+    }
+    .optional-toggle span strong { color: var(--pale); }
+
+    .optional-body { display: none; }
+    .optional-body.visible { display: block; }
+
+    /* ── Sub-section (gym items) ── */
+    .sub-section {
+        border-left: 2px solid var(--blue-border);
+        padding-left: 18px;
+        margin-top: 20px;
+    }
+    .sub-section-title {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--blue);
+        margin-bottom: 16px;
+    }
+
+    /* ── Inline divider ── */
+    .field-divider {
+        height: 1px;
+        background: var(--divider);
+        margin: 22px 0;
+    }
+
+    /* ── Image field cluster ── */
+    .image-cluster {
+        background: rgba(0,0,0,0.2);
+        border: 1px dashed var(--fog);
+        padding: 16px;
+        margin-top: 4px;
+    }
+    .image-cluster-label {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--blue);
+        margin-bottom: 14px;
+    }
+
+    /* ── Fixed field badge ── */
+    .fixed-badge {
+        display: inline-block;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 9px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--mist);
+        border: 1px solid var(--fog);
+        padding: 2px 7px;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+
+    /* ── Export toast ── */
+    #toast {
+        position: fixed;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--blue);
+        color: var(--white);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        padding: 12px 28px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s, transform 0.2s;
+        white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 560px) {
+        .page-header { padding: 20px; flex-direction: column; align-items: flex-start; }
+        .form-body { padding: 24px 14px 0; }
+        .field-row { grid-template-columns: 1fr; }
+        .section-body { padding: 16px; }
+    }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+    <div>
+        <h1>Crawford Coaching — Newsletter Content</h1>
+        <p>Fill every box below &nbsp;&middot;&nbsp; Leave optional sections blank to skip them</p>
+    </div>
+    <button class="export-btn" onclick="exportJSON()">Export as JSON</button>
+</header>
+
+<div class="form-body">
+
+    <!-- ══ GLOBAL ══ -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <div class="section-tag">Always required</div>
+                <div class="section-title">Edition Details</div>
+                <p class="section-note">These fields appear at the top of the newsletter and in the email subject line.</p>
+            </div>
+        </div>
+        <div class="section-body">
+            <div class="field-row">
+                <div class="field-group">
+                    <label for="edition_label">Edition label</label>
+                    <p class="field-hint">Appears above the title. e.g. April 2026 · Issue 15</p>
+                    <input type="text" id="edition_label" placeholder="April 2026 · Issue 15" />
+                </div>
+                <div class="field-group">
+                    <label for="subject">Email subject line</label>
+                    <p class="field-hint">What subscribers see in their inbox before opening.</p>
+                    <input type="text" id="subject" placeholder="April Edition 1 2026 | Becoming a Snacker" />
+                </div>
+            </div>
+            <div class="field-group">
+                <label for="intro_title">Issue title</label>
+                <p class="field-hint">The large heading at the top of the newsletter. Keep it short and compelling.</p>
+                <input type="text" id="intro_title" placeholder="Becoming a Snacker" />
+            </div>
+            <div class="field-group">
+                <label for="intro_tagline">Opening quote</label>
+                <p class="field-hint">A short, memorable line shown in italics beneath the title. Sets the tone for the issue.</p>
+                <input type="text" id="intro_tagline" placeholder="Consistency is not built by never drifting. It is built by returning." />
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ INTRO ══ -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <div class="section-tag">Always required</div>
+                <div class="section-title">Introduction</div>
+                <p class="section-note">Scott's main letter to readers. Write in first person, conversational tone. Typically 400–600 words. End with "Scott".</p>
+            </div>
+        </div>
+        <div class="section-body">
+            <div class="field-group">
+                <label for="intro_body">Body text</label>
+                <p class="field-hint">Paste the full intro here. Plain paragraphs only — no bullet points or headers. Line breaks between paragraphs are fine.</p>
+                <textarea class="tall" id="intro_body" placeholder="Hi [first name],&#10;&#10;This month, I have a confession to make...&#10;&#10;Scott"></textarea>
+            </div>
+            <div class="field-divider"></div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label for="full_blog_url">Full blog article URL</label>
+                    <p class="field-hint">Link to the article on crawford-coaching.ca</p>
+                    <input type="url" id="full_blog_url" placeholder="https://crawford-coaching.ca/writing/15-becoming-a-snacker" />
+                </div>
+                <div class="field-group">
+                    <label for="blogcast_url">AI discussion URL</label>
+                    <p class="field-hint">Link to the blog page where the AI audio discussion lives.</p>
+                    <input type="url" id="blogcast_url" placeholder="https://crawford-coaching.ca/writing/15-becoming-a-snacker" />
+                </div>
+            </div>
+            <div class="field-group" style="margin-top:16px;">
+                <label for="subscribe_url">Subscribe page URL <span class="fixed-badge">usually unchanged</span></label>
+                <input type="url" id="subscribe_url" value="https://crawford-coaching.ca/subscribe" />
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ FOOD FOR THE BODY ══ -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <div class="section-tag">Always required</div>
+                <div class="section-title">Food for the Body</div>
+                <p class="section-note">Practical fitness or nutrition tip. ~200 words. Image floats left on desktop.</p>
+            </div>
+        </div>
+        <div class="section-body">
+            <div class="field-group">
+                <label for="body_subtitle">Subtitle</label>
+                <p class="field-hint">Short title for this section's topic. e.g. "Eat Around, Not On Top"</p>
+                <input type="text" id="body_subtitle" placeholder="Eat Around, Not On Top" />
+            </div>
+            <div class="field-group">
+                <label for="body_copy">Body text</label>
+                <p class="field-hint">The section content. Aim for ~200 words.</p>
+                <textarea id="body_copy" placeholder="Paste body text here..."></textarea>
+            </div>
+            <div class="field-divider"></div>
+            <div class="image-cluster">
+                <p class="image-cluster-label">Image</p>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="body_image">Image filename</label>
+                        <p class="field-hint">Filename only. e.g. body-plate.png</p>
+                        <input type="text" id="body_image" placeholder="body-plate.png" />
+                    </div>
+                    <div class="field-group">
+                        <label for="body_image_alt">Image description</label>
+                        <p class="field-hint">Describe the image for screen readers and SEO.</p>
+                        <input type="text" id="body_image_alt" placeholder="A balanced plate built around protein" />
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="body_image_caption">Caption / credit / call to action</label>
+                        <p class="field-hint">Shows centred below the image. e.g. "Photo: Jane Smith" or "Click to book your spot"</p>
+                        <input type="text" id="body_image_caption" placeholder="Optional caption text" />
+                    </div>
+                    <div class="field-group">
+                        <label for="body_image_url">Image link URL</label>
+                        <p class="field-hint">If provided, the image and caption both become a clickable link.</p>
+                        <input type="url" id="body_image_url" placeholder="https://... (leave blank if no link)" />
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label for="body_image_layout">Image orientation</label>
+                    <p class="field-hint">Portrait images float beside the text. Landscape images sit full-width above the text.</p>
+                    <select id="body_image_layout">
+                        <option value="portrait">Portrait — floats beside text (default)</option>
+                        <option value="landscape">Landscape — full width above text</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-divider"></div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label for="body_cta_label">Button label</label>
+                    <p class="field-hint">Text on the call-to-action button. e.g. "Ask Assistant"</p>
+                    <input type="text" id="body_cta_label" placeholder="Ask Assistant" />
+                </div>
+                <div class="field-group">
+                    <label for="body_cta_url">Button URL</label>
+                    <input type="url" id="body_cta_url" placeholder="https://crawford-coaching.ca/assistant" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ FOOD FOR THOUGHT ══ -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <div class="section-tag">Always required</div>
+                <div class="section-title">Food for Thought</div>
+                <p class="section-note">A reflective prompt or idea for the reader to sit with. ~200 words. Image floats right on desktop.</p>
+            </div>
+        </div>
+        <div class="section-body">
+            <div class="field-group">
+                <label for="thought_subtitle">Subtitle</label>
+                <input type="text" id="thought_subtitle" placeholder="When Good Habits Grow Legs" />
+            </div>
+            <div class="field-group">
+                <label for="thought_copy">Body text</label>
+                <textarea id="thought_copy" placeholder="Paste body text here..."></textarea>
+            </div>
+            <div class="field-divider"></div>
+            <div class="image-cluster">
+                <p class="image-cluster-label">Image</p>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="thought_image">Image filename</label>
+                        <input type="text" id="thought_image" placeholder="rx-bar.png" />
+                    </div>
+                    <div class="field-group">
+                        <label for="thought_image_alt">Image description</label>
+                        <input type="text" id="thought_image_alt" placeholder="Hand reaching for an RX Bar beside a coffee" />
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="thought_image_caption">Caption / credit / call to action</label>
+                        <input type="text" id="thought_image_caption" placeholder="Optional caption text" />
+                    </div>
+                    <div class="field-group">
+                        <label for="thought_image_url">Image link URL</label>
+                        <input type="url" id="thought_image_url" placeholder="https://... (leave blank if no link)" />
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label for="thought_image_layout">Image orientation</label>
+                    <select id="thought_image_layout">
+                        <option value="portrait">Portrait — floats beside text (default)</option>
+                        <option value="landscape">Landscape — full width above text</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-divider"></div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label for="thought_cta_label">Button label</label>
+                    <input type="text" id="thought_cta_label" placeholder="Book a Chat" />
+                </div>
+                <div class="field-group">
+                    <label for="thought_cta_url">Button URL</label>
+                    <input type="url" id="thought_cta_url" placeholder="https://calendar.app.google/..." />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ FOOD FOR THE BRAIN ══ -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <div class="section-tag">Always required</div>
+                <div class="section-title">Food for the Brain</div>
+                <p class="section-note">Educational content — psychology, science, or a framework. ~200 words. Image floats left on desktop.</p>
+            </div>
+        </div>
+        <div class="section-body">
+            <div class="field-group">
+                <label for="brain_subtitle">Subtitle</label>
+                <input type="text" id="brain_subtitle" placeholder="One Question To Replace A Label" />
+            </div>
+            <div class="field-group">
+                <label for="brain_copy">Body text</label>
+                <textarea id="brain_copy" placeholder="Paste body text here..."></textarea>
+            </div>
+            <div class="field-divider"></div>
+            <div class="image-cluster">
+                <p class="image-cluster-label">Image</p>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="brain_image">Image filename</label>
+                        <input type="text" id="brain_image" placeholder="jasmin-paris.jpg" />
+                    </div>
+                    <div class="field-group">
+                        <label for="brain_image_alt">Image description</label>
+                        <input type="text" id="brain_image_alt" placeholder="Jasmin Paris after finishing the Barkley Marathons" />
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="brain_image_caption">Caption / credit / call to action</label>
+                        <input type="text" id="brain_image_caption" placeholder="Photo: Jacob Zocherman" />
+                    </div>
+                    <div class="field-group">
+                        <label for="brain_image_url">Image link URL</label>
+                        <input type="url" id="brain_image_url" placeholder="https://... (leave blank if no link)" />
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label for="brain_image_layout">Image orientation</label>
+                    <select id="brain_image_layout">
+                        <option value="portrait">Portrait — floats beside text (default)</option>
+                        <option value="landscape">Landscape — full width above text</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-divider"></div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label for="brain_cta_label">Button label</label>
+                    <input type="text" id="brain_cta_label" placeholder="Ask Me a Question" />
+                </div>
+                <div class="field-group">
+                    <label for="brain_cta_url">Button URL</label>
+                    <input type="url" id="brain_cta_url" placeholder="https://crawford-coaching.ca/contact" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ FOOD FOR THE SOUL ══ -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <div class="section-tag">Always required</div>
+                <div class="section-title">Food for the Soul</div>
+                <p class="section-note">Motivational or uplifting close. ~200 words. Image floats right on desktop.</p>
+            </div>
+        </div>
+        <div class="section-body">
+            <div class="field-group">
+                <label for="soul_subtitle">Subtitle</label>
+                <input type="text" id="soul_subtitle" placeholder="Permission To Think In Context" />
+            </div>
+            <div class="field-group">
+                <label for="soul_copy">Body text</label>
+                <textarea id="soul_copy" placeholder="Paste body text here..."></textarea>
+            </div>
+            <div class="field-divider"></div>
+            <div class="image-cluster">
+                <p class="image-cluster-label">Image</p>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="soul_image">Image filename</label>
+                        <input type="text" id="soul_image" placeholder="peaceful-grass.png" />
+                    </div>
+                    <div class="field-group">
+                        <label for="soul_image_alt">Image description</label>
+                        <input type="text" id="soul_image_alt" placeholder="A forest path diverging in warm light" />
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="soul_image_caption">Caption / credit / call to action</label>
+                        <input type="text" id="soul_image_caption" placeholder="Optional caption text" />
+                    </div>
+                    <div class="field-group">
+                        <label for="soul_image_url">Image link URL</label>
+                        <input type="url" id="soul_image_url" placeholder="https://... (leave blank if no link)" />
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label for="soul_image_layout">Image orientation</label>
+                    <select id="soul_image_layout">
+                        <option value="portrait">Portrait — floats beside text (default)</option>
+                        <option value="landscape">Landscape — full width above text</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-divider"></div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label for="soul_cta_label">Button label</label>
+                    <input type="text" id="soul_cta_label" placeholder="Coaching Discovery Call" />
+                </div>
+                <div class="field-group">
+                    <label for="soul_cta_url">Button URL</label>
+                    <input type="url" id="soul_cta_url" placeholder="https://calendar.app.google/..." />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ GYM NEWS ══ -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <div class="section-tag">Optional — tick to include</div>
+                <div class="section-title">Gym News</div>
+                <p class="section-note">Gym-specific updates. Always has a closures field. Add up to two main stories.</p>
+            </div>
+        </div>
+        <div class="section-body">
+
+            <label class="optional-toggle" for="gym_enabled">
+                <input type="checkbox" id="gym_enabled" onchange="toggleSection('gym_body', this.checked)" />
+                <span><strong>Include Gym News in this edition</strong></span>
+            </label>
+
+            <div class="optional-body" id="gym_body">
+
+                <!-- Closures — always shown if gym section is on -->
+                <div class="sub-section">
+                    <p class="sub-section-title">Upcoming Gym Closures <span class="fixed-badge">heading is fixed</span></p>
+                    <div class="field-group">
+                        <label for="gym_closure_dates">Closure dates</label>
+                        <p class="field-hint">List the dates and any relevant details. e.g. "May 18th — Full closure. June 2nd — Morning sessions only."</p>
+                        <textarea class="short" id="gym_closure_dates" placeholder="May 18th — Full closure.&#10;Additional dates available from my assistant or calendar."></textarea>
+                    </div>
+                </div>
+
+                <!-- Gym story 1 -->
+                <div class="sub-section">
+                    <p class="sub-section-title">Main Story 1</p>
+                    <div class="field-group">
+                        <label for="gym1_heading">Heading</label>
+                        <input type="text" id="gym1_heading" placeholder="New Interval Timer" />
+                    </div>
+                    <div class="field-group">
+                        <label for="gym1_copy">Body text</label>
+                        <textarea class="short" id="gym1_copy" placeholder="Paste story text here..."></textarea>
+                    </div>
+                    <div class="image-cluster" style="margin-top:14px;">
+                        <p class="image-cluster-label">Image (optional)</p>
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label for="gym1_image">Image filename</label>
+                                <input type="text" id="gym1_image" placeholder="timer.png" />
+                            </div>
+                            <div class="field-group">
+                                <label for="gym1_image_alt">Image description</label>
+                                <input type="text" id="gym1_image_alt" placeholder="Synergize Interval Timer" />
+                            </div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label for="gym1_image_caption">Caption / credit / call to action</label>
+                                <input type="text" id="gym1_image_caption" placeholder="Optional caption" />
+                            </div>
+                            <div class="field-group">
+                                <label for="gym1_image_url">Image link URL</label>
+                                <input type="url" id="gym1_image_url" placeholder="https://... (leave blank if no link)" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field-row" style="margin-top:14px;">
+                        <div class="field-group">
+                            <label for="gym1_cta_label">Button label</label>
+                            <input type="text" id="gym1_cta_label" placeholder="Try the Timer" />
+                        </div>
+                        <div class="field-group">
+                            <label for="gym1_cta_url">Button URL</label>
+                            <input type="url" id="gym1_cta_url" placeholder="https://crawford-coaching.ca/timer" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gym story 2 — optional -->
+                <div class="sub-section" style="margin-top:20px;">
+                    <label class="optional-toggle" for="gym2_enabled">
+                        <input type="checkbox" id="gym2_enabled" onchange="toggleSection('gym2_body', this.checked)" />
+                        <span><strong>Add a second gym story</strong></span>
+                    </label>
+                    <div class="optional-body" id="gym2_body">
+                        <div class="field-group">
+                            <label for="gym2_heading">Heading</label>
+                            <input type="text" id="gym2_heading" placeholder="New Group Class: Saturday Strength" />
+                        </div>
+                        <div class="field-group">
+                            <label for="gym2_copy">Body text</label>
+                            <textarea class="short" id="gym2_copy" placeholder="Paste story text here..."></textarea>
+                        </div>
+                        <div class="image-cluster" style="margin-top:14px;">
+                            <p class="image-cluster-label">Image (optional)</p>
+                            <div class="field-row">
+                                <div class="field-group">
+                                    <label for="gym2_image">Image filename</label>
+                                    <input type="text" id="gym2_image" placeholder="class-photo.png" />
+                                </div>
+                                <div class="field-group">
+                                    <label for="gym2_image_alt">Image description</label>
+                                    <input type="text" id="gym2_image_alt" placeholder="Saturday strength class in session" />
+                                </div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field-group">
+                                    <label for="gym2_image_caption">Caption / credit / call to action</label>
+                                    <input type="text" id="gym2_image_caption" placeholder="Optional caption" />
+                                </div>
+                                <div class="field-group">
+                                    <label for="gym2_image_url">Image link URL</label>
+                                    <input type="url" id="gym2_image_url" placeholder="https://... (leave blank if no link)" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field-row" style="margin-top:14px;">
+                            <div class="field-group">
+                                <label for="gym2_cta_label">Button label</label>
+                                <input type="text" id="gym2_cta_label" placeholder="Book Your Spot" />
+                            </div>
+                            <div class="field-group">
+                                <label for="gym2_cta_url">Button URL</label>
+                                <input type="url" id="gym2_cta_url" placeholder="https://..." />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ LOCAL NEWS ══ -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <div class="section-tag">Optional — tick to include</div>
+                <div class="section-title">Local News</div>
+                <p class="section-note">Community events or local interest items from the Kingston area.</p>
+            </div>
+        </div>
+        <div class="section-body">
+
+            <label class="optional-toggle" for="local_enabled">
+                <input type="checkbox" id="local_enabled" onchange="toggleSection('local_body', this.checked)" />
+                <span><strong>Include Local News in this edition</strong></span>
+            </label>
+
+            <div class="optional-body" id="local_body">
+                <div class="field-group">
+                    <label for="local_subtitle">Subtitle</label>
+                    <p class="field-hint">Short heading for the local item. e.g. "Upcoming Performance"</p>
+                    <input type="text" id="local_subtitle" placeholder="Upcoming Performance" />
+                </div>
+                <div class="field-group">
+                    <label for="local_copy">Body text</label>
+                    <textarea class="short" id="local_copy" placeholder="Paste local news text here..."></textarea>
+                </div>
+                <div class="field-divider"></div>
+                <div class="image-cluster">
+                    <p class="image-cluster-label">Image (optional)</p>
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label for="local_image">Image filename</label>
+                            <input type="text" id="local_image" placeholder="ten.png" />
+                        </div>
+                        <div class="field-group">
+                            <label for="local_image_alt">Image description</label>
+                            <input type="text" id="local_image_alt" placeholder="Voices Rock TEN concert graphic" />
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label for="local_image_caption">Caption / credit / call to action</label>
+                            <input type="text" id="local_image_caption" placeholder="Get your tickets →" />
+                        </div>
+                        <div class="field-group">
+                            <label for="local_image_url">Image link URL</label>
+                            <input type="url" id="local_image_url" placeholder="https://..." />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /form-body -->
+
+<div id="toast">JSON copied to clipboard</div>
+
+<script>
+function toggleSection(id, show) {
+    document.getElementById(id).classList.toggle('visible', show);
+}
+
+function val(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    if (el.type === 'checkbox') return el.checked;
+    return el.value.trim();
+}
+
+function exportJSON() {
+    const data = {
+        edition_label:   val('edition_label'),
+        subject:         val('subject'),
+        intro_title:     val('intro_title'),
+        intro_tagline:   val('intro_tagline'),
+        intro_body:      val('intro_body'),
+        full_blog_url:   val('full_blog_url'),
+        blogcast_url:    val('blogcast_url'),
+        subscribe_url:   val('subscribe_url'),
+
+        food_body: {
+            subtitle:       val('body_subtitle'),
+            copy:           val('body_copy'),
+            image:          val('body_image'),
+            image_alt:      val('body_image_alt'),
+            image_caption:  val('body_image_caption'),
+            image_url:      val('body_image_url'),
+            image_layout:   val('body_image_layout'),
+            cta_label:      val('body_cta_label'),
+            cta_url:        val('body_cta_url'),
+        },
+
+        food_thought: {
+            subtitle:       val('thought_subtitle'),
+            copy:           val('thought_copy'),
+            image:          val('thought_image'),
+            image_alt:      val('thought_image_alt'),
+            image_caption:  val('thought_image_caption'),
+            image_url:      val('thought_image_url'),
+            image_layout:   val('thought_image_layout'),
+            cta_label:      val('thought_cta_label'),
+            cta_url:        val('thought_cta_url'),
+        },
+
+        food_brain: {
+            subtitle:       val('brain_subtitle'),
+            copy:           val('brain_copy'),
+            image:          val('brain_image'),
+            image_alt:      val('brain_image_alt'),
+            image_caption:  val('brain_image_caption'),
+            image_url:      val('brain_image_url'),
+            image_layout:   val('brain_image_layout'),
+            cta_label:      val('brain_cta_label'),
+            cta_url:        val('brain_cta_url'),
+        },
+
+        food_soul: {
+            subtitle:       val('soul_subtitle'),
+            copy:           val('soul_copy'),
+            image:          val('soul_image'),
+            image_alt:      val('soul_image_alt'),
+            image_caption:  val('soul_image_caption'),
+            image_url:      val('soul_image_url'),
+            image_layout:   val('soul_image_layout'),
+            cta_label:      val('soul_cta_label'),
+            cta_url:        val('soul_cta_url'),
+        },
+
+        gym_news: {
+            enabled:        val('gym_enabled'),
+            closure_dates:  val('gym_closure_dates'),
+            story1: {
+                heading:        val('gym1_heading'),
+                copy:           val('gym1_copy'),
+                image:          val('gym1_image'),
+                image_alt:      val('gym1_image_alt'),
+                image_caption:  val('gym1_image_caption'),
+                image_url:      val('gym1_image_url'),
+                cta_label:      val('gym1_cta_label'),
+                cta_url:        val('gym1_cta_url'),
+            },
+            story2_enabled: val('gym2_enabled'),
+            story2: {
+                heading:        val('gym2_heading'),
+                copy:           val('gym2_copy'),
+                image:          val('gym2_image'),
+                image_alt:      val('gym2_image_alt'),
+                image_caption:  val('gym2_image_caption'),
+                image_url:      val('gym2_image_url'),
+                cta_label:      val('gym2_cta_label'),
+                cta_url:        val('gym2_cta_url'),
+            },
+        },
+
+        local_news: {
+            enabled:        val('local_enabled'),
+            subtitle:       val('local_subtitle'),
+            copy:           val('local_copy'),
+            image:          val('local_image'),
+            image_alt:      val('local_image_alt'),
+            image_caption:  val('local_image_caption'),
+            image_url:      val('local_image_url'),
+        },
+    };
+
+    const json = JSON.stringify(data, null, 2);
+    navigator.clipboard.writeText(json).then(() => {
+        const toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2400);
+    });
+}
+</script>
+
+</body>
+</html>

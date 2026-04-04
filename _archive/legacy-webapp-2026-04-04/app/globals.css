@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink:              #0e0f10;
+  --slate:            #1c2330;
+  --slate-mid:        #232f3e;
+  --fog:              #3d4a58;
+  --mist:             #7a8fa3;
+  --pale:             #c8d4de;
+  --white:            #f5f3ef;
+  --brand-blue:       #2d86c4;
+  --brand-blue-light: #4fa3d8;
+}
+
+/* Input / textarea base */
+.field {
+  @apply w-full bg-slate-mid border border-fog rounded px-3 py-2 text-pale text-sm
+         placeholder-mist focus:outline-none focus:border-brand-blue;
+}
+
+.label {
+  @apply block text-xs font-sans font-medium tracking-widest uppercase text-brand-blue mb-1;
+}
+
+.btn-primary {
+  @apply bg-brand-blue hover:bg-brand-blue-light text-white font-sans text-sm
+         tracking-widest uppercase px-6 py-2.5 rounded transition-colors;
+}
+
+.btn-ghost {
+  @apply border border-fog hover:border-brand-blue text-mist hover:text-pale
+         font-sans text-sm tracking-widest uppercase px-4 py-2 rounded transition-colors;
+}
+
+.chip {
+  @apply inline-flex items-center gap-1.5 bg-slate-mid border border-fog
+         text-pale text-xs font-sans px-2.5 py-1 rounded-full;
+}
