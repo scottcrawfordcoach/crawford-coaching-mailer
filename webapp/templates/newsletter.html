@@ -46,6 +46,27 @@
                 color: inherit !important;
                 text-decoration: none !important;
             }
+            .clearfix::after { content: ''; display: table; clear: both; }
+            .img-float-left { float: left; margin: 0 22px 8px 0; width: 160px; }
+            .img-float-right { float: right; margin: 0 0 8px 22px; width: 160px; }
+            .img-float-left img, .img-float-right img {
+                display: block; width: 160px; height: 210px; object-fit: cover;
+                border: 1px solid rgba(45,134,196,0.2);
+                box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35);
+            }
+            .img-caption {
+                display: block; width: 160px; margin: 6px 0 0 0;
+                font-family: Arial, Helvetica, sans-serif; font-size: 10px;
+                line-height: 1.45; text-align: center; color: #3d4a58; text-decoration: none;
+            }
+            .img-caption-link { color: #2d86c4; text-decoration: underline; }
+            .img-gym-float { float: right; margin: 0 0 10px 16px; width: 120px; }
+            .img-gym-float img {
+                display: block; width: 120px; height: 150px; object-fit: cover;
+                border: 1px solid rgba(45,134,196,0.2);
+                box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35);
+            }
+            .img-gym-float .img-caption { width: 120px; }
             @media only screen and (max-width: 620px) {
                 .email-container {
                     width: 100% !important;
@@ -53,16 +74,20 @@
                 .content-cell {
                     padding: 28px 20px !important;
                 }
-                .two-col-left,
-                .two-col-right {
-                    display: block !important;
-                    width: 100% !important;
+                .img-float-left, .img-float-right {
+                    float: none !important; width: 100% !important; margin: 0 0 6px 0 !important;
                 }
-                .two-col-img {
-                    width: 100% !important;
-                    max-width: 100% !important;
-                    margin-bottom: 20px !important;
+                .img-float-left img, .img-float-right img {
+                    width: 100% !important; height: 220px !important; max-width: 100% !important;
                 }
+                .img-float-left .img-caption, .img-float-right .img-caption {
+                    width: 100% !important; margin: 6px 0 16px 0 !important;
+                }
+                .img-gym-float {
+                    float: none !important; width: 100% !important; margin: 0 0 6px 0 !important;
+                }
+                .img-gym-float img { width: 100% !important; height: 180px !important; }
+                .img-gym-float .img-caption { width: 100% !important; }
                 .section-label {
                     font-size: 20px !important;
                 }
@@ -140,21 +165,21 @@
                             <td
                                 class="content-cell"
                                 style="
-                                    padding: 40px 48px 32px 48px;
+                                    padding: 44px 48px 36px 48px;
                                     background-color: #1c2330;
                                 "
                             >
                                 <!-- Edition label -->
                                 <p
                                     style="
-                                        margin: 0 0 10px 0;
+                                        margin: 0 0 12px 0;
                                         font-family:
                                             Arial, Helvetica, sans-serif;
-                                        font-size: 12px;
+                                        font-size: 11px;
                                         font-weight: 400;
-                                        letter-spacing: 0.12em;
+                                        letter-spacing: 0.18em;
                                         text-transform: uppercase;
-                                        color: #7a8fa3;
+                                        color: #2d86c4;
                                     "
                                 >
                                     {{EDITION_LABEL}}
@@ -162,13 +187,13 @@
                                 <!-- Issue title -->
                                 <h1
                                     style="
-                                        margin: 0 0 16px 0;
+                                        margin: 0 0 22px 0;
                                         font-family:
                                             Georgia,
                                             &quot;Times New Roman&quot;, serif;
-                                        font-size: 28px;
+                                        font-size: 30px;
                                         font-weight: 700;
-                                        line-height: 1.2;
+                                        line-height: 1.15;
                                         color: #f5f3ef;
                                     "
                                 >
@@ -176,20 +201,14 @@
                                 </h1>
 
                                 <!-- Tagline / opening quote -->
-                                <p
-                                    style="
-                                        margin: 0 0 24px 0;
-                                        font-family:
-                                            Georgia,
-                                            &quot;Times New Roman&quot;, serif;
-                                        font-style: italic;
-                                        font-size: 16px;
-                                        line-height: 1.6;
-                                        color: #7a8fa3;
-                                    "
-                                >
-                                    <em>{{INTRO_TAGLINE}}</em>
-                                </p>
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 28px 0;">
+                                    <tr>
+                                        <td width="3" style="background-color: #2d86c4; border-radius: 2px;">&nbsp;</td>
+                                        <td style="padding: 4px 0 4px 16px;">
+                                            <p style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: 17px; line-height: 1.65; color: #7a8fa3;">{{INTRO_TAGLINE}}</p>
+                                        </td>
+                                    </tr>
+                                </table>
 
                                 <!-- Greeting -->
                                 <p
@@ -213,50 +232,23 @@
                                             Georgia,
                                             &quot;Times New Roman&quot;, serif;
                                         font-size: 16px;
-                                        line-height: 1.8;
+                                        line-height: 1.85;
                                         color: #c8d4de;
+                                        text-align: justify;
                                     "
                                 >
                                     {{INTRO_BODY}}
                                 </div>
 
-                                <p
-                                    style="
-                                        margin: 20px 0 0 0;
-                                        font-family:
-                                            Arial, Helvetica, sans-serif;
-                                        font-size: 14px;
-                                        line-height: 1.6;
-                                        color: #7a8fa3;
-                                    "
-                                >
-                                    <a
-                                        href="{{FULL_BLOG_URL}}"
-                                        style="
-                                            color: #2d86c4;
-                                            text-decoration: underline;
-                                        "
-                                        >Read on the web</a
-                                    >
-                                    &nbsp;&middot;&nbsp;
-                                    <a
-                                        href="{{BLOGCAST_URL}}"
-                                        style="
-                                            color: #2d86c4;
-                                            text-decoration: underline;
-                                        "
-                                        >Listen to the AI discussion</a
-                                    >
-                                    &nbsp;&middot;&nbsp;
-                                    <a
-                                        href="{{SUBSCRIBE_URL}}"
-                                        style="
-                                            color: #2d86c4;
-                                            text-decoration: underline;
-                                        "
-                                        >Subscribe</a
-                                    >
-                                </p>
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 32px 0 0 0;">
+                                    <tr>
+                                        <td style="border-top: 1px solid #2a3444; padding-top: 24px;">
+                                            <p style="margin: 0 0 10px 0; font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.6; color: #7a8fa3;">If you found this valuable, please forward it to a friend.</p>
+                                            <p style="margin: 0 0 10px 0; font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.6; color: #7a8fa3;">Were you sent this by a friend? <a href="{{SUBSCRIBE_URL}}" style="color: #2d86c4; text-decoration: underline;">Subscribe here</a>.</p>
+                                            <p style="margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.6; color: #7a8fa3;">Interested? Read the <a href="{{FULL_BLOG_URL}}" style="color: #2d86c4; text-decoration: underline;">full blog article</a> or <a href="{{BLOGCAST_URL}}" style="color: #2d86c4; text-decoration: underline;">hear it discussed</a>.</p>
+                                        </td>
+                                    </tr>
+                                </table>
 
                                 <!-- Website CTA button -->
                                 <table
@@ -324,6 +316,7 @@
                                     background-color: #1c2330;
                                 "
                             >
+                                <p style="margin: 0 0 4px 0; font-family: Arial, Helvetica, sans-serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #2d86c4;">Food for the</p>
                                 <h2
                                     class="section-label"
                                     style="
@@ -336,103 +329,18 @@
                                         color: #f5f3ef;
                                     "
                                 >
-                                    Food for the BODY
+                                    Body
                                 </h2>
 
-                                <!-- Two-column: image left, text right -->
-                                <table
-                                    role="presentation"
-                                    width="100%"
-                                    cellpadding="0"
-                                    cellspacing="0"
-                                    border="0"
-                                >
-                                    <tr>
-                                        <!-- Image column -->
-                                        <td
-                                            class="two-col-left"
-                                            width="220"
-                                            valign="top"
-                                            style="padding-right: 24px"
-                                        >
-                                            {{#if BODY_IMAGE}} {{#if
-                                            BODY_IMAGE_URL}}<a
-                                                href="{{BODY_IMAGE_URL}}"
-                                                style="
-                                                    text-decoration: none;
-                                                    display: block;
-                                                "
-                                                >{{/if BODY_IMAGE_URL}}<img
-                                                    class="two-col-img"
-                                                    src="{{BODY_IMAGE}}"
-                                                    alt="{{BODY_IMAGE_ALT}}"
-                                                    width="196"
-                                                    style="
-                                                        display: block;
-                                                        width: 196px;
-                                                        max-width: 196px;
-                                                        height: auto;
-                                                        border: 1px solid
-                                                            rgba(
-                                                                45,
-                                                                134,
-                                                                196,
-                                                                0.15
-                                                            );
-                                                    "
-                                                />
-                                                {{#if BODY_IMAGE_CAPTION}}
-                                                <p
-                                                    style="
-                                                        margin: 6px 0 0 0;
-                                                        font-family:
-                                                            Arial, Helvetica,
-                                                            sans-serif;
-                                                        font-size: 11px;
-                                                        line-height: 1.4;
-                                                        color: #7a8fa3;
-                                                        text-align: center;
-                                                    "
-                                                >
-                                                    {{BODY_IMAGE_CAPTION}}
-                                                </p>
-                                                {{/if BODY_IMAGE_CAPTION}} {{#if
-                                                BODY_IMAGE_URL}}</a
-                                            >{{/if BODY_IMAGE_URL}} {{/if
-                                            BODY_IMAGE}}
-                                        </td>
-                                        <!-- Text column -->
-                                        <td class="two-col-right" valign="top">
-                                            <h3
-                                                style="
-                                                    margin: 0 0 12px 0;
-                                                    font-family:
-                                                        Georgia,
-                                                        &quot;Times New Roman&quot;,
-                                                        serif;
-                                                    font-size: 16px;
-                                                    font-weight: 700;
-                                                    color: #f5f3ef;
-                                                "
-                                            >
-                                                {{BODY_SUBTITLE}}
-                                            </h3>
-                                            <div
-                                                style="
-                                                    font-family:
-                                                        Georgia,
-                                                        &quot;Times New Roman&quot;,
-                                                        serif;
-                                                    font-size: 15px;
-                                                    line-height: 1.75;
-                                                    color: #c8d4de;
-                                                "
-                                            >
-                                                {{BODY_COPY}}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </table>
+                                <div class="clearfix">
+                                    {{#if BODY_IMAGE}}
+                                    <div class="img-float-left">
+                                        {{#if BODY_IMAGE_URL}}<a href="{{BODY_IMAGE_URL}}" style="text-decoration: none; display: block;">{{/if BODY_IMAGE_URL}}<img src="{{BODY_IMAGE}}" alt="{{BODY_IMAGE_ALT}}" width="160" />{{#if BODY_IMAGE_CAPTION}}<span class="img-caption">{{BODY_IMAGE_CAPTION}}</span>{{/if BODY_IMAGE_CAPTION}}{{#if BODY_IMAGE_URL}}</a>{{/if BODY_IMAGE_URL}}
+                                    </div>
+                                    {{/if BODY_IMAGE}}
+                                    <h3 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: #f5f3ef;">{{BODY_SUBTITLE}}</h3>
+                                    <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; line-height: 1.85; color: #c8d4de; text-align: justify;">{{BODY_COPY}}</div>
+                                </div>
 
                                 <!-- CTA button -->
                                 {{#if BODY_CTA_LABEL}}
@@ -502,6 +410,7 @@
                                     background-color: #1c2330;
                                 "
                             >
+                                <p style="margin: 0 0 4px 0; font-family: Arial, Helvetica, sans-serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #2d86c4;">Food for</p>
                                 <h2
                                     class="section-label"
                                     style="
@@ -514,106 +423,18 @@
                                         color: #f5f3ef;
                                     "
                                 >
-                                    Food for THOUGHT
+                                    Thought
                                 </h2>
 
-                                <!-- Two-column: text left, image right -->
-                                <table
-                                    role="presentation"
-                                    width="100%"
-                                    cellpadding="0"
-                                    cellspacing="0"
-                                    border="0"
-                                >
-                                    <tr>
-                                        <!-- Text column -->
-                                        <td
-                                            class="two-col-left"
-                                            valign="top"
-                                            style="padding-right: 24px"
-                                        >
-                                            <h3
-                                                style="
-                                                    margin: 0 0 12px 0;
-                                                    font-family:
-                                                        Georgia,
-                                                        &quot;Times New Roman&quot;,
-                                                        serif;
-                                                    font-size: 16px;
-                                                    font-weight: 700;
-                                                    color: #f5f3ef;
-                                                "
-                                            >
-                                                {{THOUGHT_SUBTITLE}}
-                                            </h3>
-                                            <div
-                                                style="
-                                                    font-family:
-                                                        Georgia,
-                                                        &quot;Times New Roman&quot;,
-                                                        serif;
-                                                    font-size: 15px;
-                                                    line-height: 1.75;
-                                                    color: #c8d4de;
-                                                "
-                                            >
-                                                {{THOUGHT_COPY}}
-                                            </div>
-                                        </td>
-                                        <!-- Image column -->
-                                        <td
-                                            class="two-col-right"
-                                            width="220"
-                                            valign="top"
-                                        >
-                                            {{#if THOUGHT_IMAGE}} {{#if
-                                            THOUGHT_IMAGE_URL}}<a
-                                                href="{{THOUGHT_IMAGE_URL}}"
-                                                style="
-                                                    text-decoration: none;
-                                                    display: block;
-                                                "
-                                                >{{/if THOUGHT_IMAGE_URL}}<img
-                                                    class="two-col-img"
-                                                    src="{{THOUGHT_IMAGE}}"
-                                                    alt="{{THOUGHT_IMAGE_ALT}}"
-                                                    width="196"
-                                                    style="
-                                                        display: block;
-                                                        width: 196px;
-                                                        max-width: 196px;
-                                                        height: auto;
-                                                        border: 1px solid
-                                                            rgba(
-                                                                45,
-                                                                134,
-                                                                196,
-                                                                0.15
-                                                            );
-                                                    "
-                                                />
-                                                {{#if THOUGHT_IMAGE_CAPTION}}
-                                                <p
-                                                    style="
-                                                        margin: 6px 0 0 0;
-                                                        font-family:
-                                                            Arial, Helvetica,
-                                                            sans-serif;
-                                                        font-size: 11px;
-                                                        line-height: 1.4;
-                                                        color: #7a8fa3;
-                                                        text-align: center;
-                                                    "
-                                                >
-                                                    {{THOUGHT_IMAGE_CAPTION}}
-                                                </p>
-                                                {{/if THOUGHT_IMAGE_CAPTION}}
-                                                {{#if THOUGHT_IMAGE_URL}}</a
-                                            >{{/if THOUGHT_IMAGE_URL}} {{/if
-                                            THOUGHT_IMAGE}}
-                                        </td>
-                                    </tr>
-                                </table>
+                                <div class="clearfix">
+                                    {{#if THOUGHT_IMAGE}}
+                                    <div class="img-float-right">
+                                        {{#if THOUGHT_IMAGE_URL}}<a href="{{THOUGHT_IMAGE_URL}}" style="text-decoration: none; display: block;">{{/if THOUGHT_IMAGE_URL}}<img src="{{THOUGHT_IMAGE}}" alt="{{THOUGHT_IMAGE_ALT}}" width="160" />{{#if THOUGHT_IMAGE_CAPTION}}<span class="img-caption">{{THOUGHT_IMAGE_CAPTION}}</span>{{/if THOUGHT_IMAGE_CAPTION}}{{#if THOUGHT_IMAGE_URL}}</a>{{/if THOUGHT_IMAGE_URL}}
+                                    </div>
+                                    {{/if THOUGHT_IMAGE}}
+                                    <h3 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: #f5f3ef;">{{THOUGHT_SUBTITLE}}</h3>
+                                    <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; line-height: 1.85; color: #c8d4de; text-align: justify;">{{THOUGHT_COPY}}</div>
+                                </div>
 
                                 {{#if THOUGHT_CTA_LABEL}}
                                 <table
@@ -681,6 +502,7 @@
                                     background-color: #1c2330;
                                 "
                             >
+                                <p style="margin: 0 0 4px 0; font-family: Arial, Helvetica, sans-serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #2d86c4;">Food for the</p>
                                 <h2
                                     class="section-label"
                                     style="
@@ -693,100 +515,18 @@
                                         color: #f5f3ef;
                                     "
                                 >
-                                    Food for the BRAIN
+                                    Brain
                                 </h2>
 
-                                <!-- Two-column: image left, text right -->
-                                <table
-                                    role="presentation"
-                                    width="100%"
-                                    cellpadding="0"
-                                    cellspacing="0"
-                                    border="0"
-                                >
-                                    <tr>
-                                        <td
-                                            class="two-col-left"
-                                            width="220"
-                                            valign="top"
-                                            style="padding-right: 24px"
-                                        >
-                                            {{#if BRAIN_IMAGE}}{{#if
-                                            BRAIN_IMAGE_URL}}<a
-                                                href="{{BRAIN_IMAGE_URL}}"
-                                                style="
-                                                    text-decoration: none;
-                                                    display: block;
-                                                "
-                                                >{{/if BRAIN_IMAGE_URL}}<img
-                                                    class="two-col-img"
-                                                    src="{{BRAIN_IMAGE}}"
-                                                    alt="{{BRAIN_IMAGE_ALT}}"
-                                                    width="196"
-                                                    style="
-                                                        display: block;
-                                                        width: 196px;
-                                                        max-width: 196px;
-                                                        height: auto;
-                                                        border: 1px solid
-                                                            rgba(
-                                                                45,
-                                                                134,
-                                                                196,
-                                                                0.15
-                                                            );
-                                                    "
-                                                />{{#if BRAIN_IMAGE_CAPTION}}
-                                                <p
-                                                    style="
-                                                        margin: 6px 0 0 0;
-                                                        font-family:
-                                                            Arial, Helvetica,
-                                                            sans-serif;
-                                                        font-size: 11px;
-                                                        line-height: 1.4;
-                                                        color: #7a8fa3;
-                                                        text-align: center;
-                                                    "
-                                                >
-                                                    {{BRAIN_IMAGE_CAPTION}}
-                                                </p>
-                                                {{/if BRAIN_IMAGE_CAPTION}}{{#if
-                                                BRAIN_IMAGE_URL}}</a
-                                            >{{/if BRAIN_IMAGE_URL}} {{/if
-                                            BRAIN_IMAGE}}
-                                        </td>
-                                        <td class="two-col-right" valign="top">
-                                            <h3
-                                                style="
-                                                    margin: 0 0 12px 0;
-                                                    font-family:
-                                                        Georgia,
-                                                        &quot;Times New Roman&quot;,
-                                                        serif;
-                                                    font-size: 16px;
-                                                    font-weight: 700;
-                                                    color: #f5f3ef;
-                                                "
-                                            >
-                                                {{BRAIN_SUBTITLE}}
-                                            </h3>
-                                            <div
-                                                style="
-                                                    font-family:
-                                                        Georgia,
-                                                        &quot;Times New Roman&quot;,
-                                                        serif;
-                                                    font-size: 15px;
-                                                    line-height: 1.75;
-                                                    color: #c8d4de;
-                                                "
-                                            >
-                                                {{BRAIN_COPY}}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </table>
+                                <div class="clearfix">
+                                    {{#if BRAIN_IMAGE}}
+                                    <div class="img-float-left">
+                                        {{#if BRAIN_IMAGE_URL}}<a href="{{BRAIN_IMAGE_URL}}" style="text-decoration: none; display: block;">{{/if BRAIN_IMAGE_URL}}<img src="{{BRAIN_IMAGE}}" alt="{{BRAIN_IMAGE_ALT}}" width="160" />{{#if BRAIN_IMAGE_CAPTION}}<span class="img-caption">{{BRAIN_IMAGE_CAPTION}}</span>{{/if BRAIN_IMAGE_CAPTION}}{{#if BRAIN_IMAGE_URL}}</a>{{/if BRAIN_IMAGE_URL}}
+                                    </div>
+                                    {{/if BRAIN_IMAGE}}
+                                    <h3 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: #f5f3ef;">{{BRAIN_SUBTITLE}}</h3>
+                                    <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; line-height: 1.85; color: #c8d4de; text-align: justify;">{{BRAIN_COPY}}</div>
+                                </div>
 
                                 {{#if BRAIN_CTA_LABEL}}
                                 <table
@@ -854,6 +594,7 @@
                                     background-color: #1c2330;
                                 "
                             >
+                                <p style="margin: 0 0 4px 0; font-family: Arial, Helvetica, sans-serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #2d86c4;">Food for the</p>
                                 <h2
                                     class="section-label"
                                     style="
@@ -866,103 +607,18 @@
                                         color: #f5f3ef;
                                     "
                                 >
-                                    Food for the SOUL
+                                    Soul
                                 </h2>
 
-                                <!-- Two-column: text left, image right -->
-                                <table
-                                    role="presentation"
-                                    width="100%"
-                                    cellpadding="0"
-                                    cellspacing="0"
-                                    border="0"
-                                >
-                                    <tr>
-                                        <td
-                                            class="two-col-left"
-                                            valign="top"
-                                            style="padding-right: 24px"
-                                        >
-                                            <h3
-                                                style="
-                                                    margin: 0 0 12px 0;
-                                                    font-family:
-                                                        Georgia,
-                                                        &quot;Times New Roman&quot;,
-                                                        serif;
-                                                    font-size: 16px;
-                                                    font-weight: 700;
-                                                    color: #f5f3ef;
-                                                "
-                                            >
-                                                {{SOUL_SUBTITLE}}
-                                            </h3>
-                                            <div
-                                                style="
-                                                    font-family:
-                                                        Georgia,
-                                                        &quot;Times New Roman&quot;,
-                                                        serif;
-                                                    font-size: 15px;
-                                                    line-height: 1.75;
-                                                    color: #c8d4de;
-                                                "
-                                            >
-                                                {{SOUL_COPY}}
-                                            </div>
-                                        </td>
-                                        <td
-                                            class="two-col-right"
-                                            width="220"
-                                            valign="top"
-                                        >
-                                            {{#if SOUL_IMAGE}}{{#if
-                                            SOUL_IMAGE_URL}}<a
-                                                href="{{SOUL_IMAGE_URL}}"
-                                                style="
-                                                    text-decoration: none;
-                                                    display: block;
-                                                "
-                                                >{{/if SOUL_IMAGE_URL}}<img
-                                                    class="two-col-img"
-                                                    src="{{SOUL_IMAGE}}"
-                                                    alt="{{SOUL_IMAGE_ALT}}"
-                                                    width="196"
-                                                    style="
-                                                        display: block;
-                                                        width: 196px;
-                                                        max-width: 196px;
-                                                        height: auto;
-                                                        border: 1px solid
-                                                            rgba(
-                                                                45,
-                                                                134,
-                                                                196,
-                                                                0.15
-                                                            );
-                                                    "
-                                                />{{#if SOUL_IMAGE_CAPTION}}
-                                                <p
-                                                    style="
-                                                        margin: 6px 0 0 0;
-                                                        font-family:
-                                                            Arial, Helvetica,
-                                                            sans-serif;
-                                                        font-size: 11px;
-                                                        line-height: 1.4;
-                                                        color: #7a8fa3;
-                                                        text-align: center;
-                                                    "
-                                                >
-                                                    {{SOUL_IMAGE_CAPTION}}
-                                                </p>
-                                                {{/if SOUL_IMAGE_CAPTION}}{{#if
-                                                SOUL_IMAGE_URL}}</a
-                                            >{{/if SOUL_IMAGE_URL}} {{/if
-                                            SOUL_IMAGE}}
-                                        </td>
-                                    </tr>
-                                </table>
+                                <div class="clearfix">
+                                    {{#if SOUL_IMAGE}}
+                                    <div class="img-float-right">
+                                        {{#if SOUL_IMAGE_URL}}<a href="{{SOUL_IMAGE_URL}}" style="text-decoration: none; display: block;">{{/if SOUL_IMAGE_URL}}<img src="{{SOUL_IMAGE}}" alt="{{SOUL_IMAGE_ALT}}" width="160" />{{#if SOUL_IMAGE_CAPTION}}<span class="img-caption">{{SOUL_IMAGE_CAPTION}}</span>{{/if SOUL_IMAGE_CAPTION}}{{#if SOUL_IMAGE_URL}}</a>{{/if SOUL_IMAGE_URL}}
+                                    </div>
+                                    {{/if SOUL_IMAGE}}
+                                    <h3 style="margin: 0 0 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: #f5f3ef;">{{SOUL_SUBTITLE}}</h3>
+                                    <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; line-height: 1.85; color: #c8d4de; text-align: justify;">{{SOUL_COPY}}</div>
+                                </div>
 
                                 {{#if SOUL_CTA_LABEL}}
                                 <table
@@ -1061,6 +717,12 @@
                                 </div>
 
                                 <!-- Story 1 -->
+                                <div class="clearfix">
+                                    {{#if GYM1_IMAGE}}
+                                    <div class="img-gym-float">
+                                        {{#if GYM1_IMAGE_URL}}<a href="{{GYM1_IMAGE_URL}}" style="text-decoration: none; display: block;">{{/if GYM1_IMAGE_URL}}<img src="{{GYM1_IMAGE}}" alt="{{GYM1_IMAGE_ALT}}" width="120" />{{#if GYM1_IMAGE_CAPTION}}<span class="img-caption">{{GYM1_IMAGE_CAPTION}}</span>{{/if GYM1_IMAGE_CAPTION}}{{#if GYM1_IMAGE_URL}}</a>{{/if GYM1_IMAGE_URL}}
+                                    </div>
+                                    {{/if GYM1_IMAGE}}
                                 <h3
                                     style="
                                         margin: 0 0 12px 0;
@@ -1075,45 +737,6 @@
                                     {{GYM1_HEADING}}
                                 </h3>
 
-                                {{#if GYM1_IMAGE}}
-                                <div style="margin: 0 0 14px 0">
-                                    {{#if GYM1_IMAGE_URL}}<a
-                                        href="{{GYM1_IMAGE_URL}}"
-                                        style="
-                                            text-decoration: none;
-                                            display: block;
-                                        "
-                                        >{{/if GYM1_IMAGE_URL}}<img
-                                            src="{{GYM1_IMAGE}}"
-                                            alt="{{GYM1_IMAGE_ALT}}"
-                                            width="240"
-                                            style="
-                                                display: block;
-                                                max-width: 100%;
-                                                height: auto;
-                                                border: 1px solid
-                                                    rgba(45, 134, 196, 0.15);
-                                            "
-                                        />
-                                        {{#if GYM1_IMAGE_CAPTION}}
-                                        <p
-                                            style="
-                                                margin: 6px 0 0 0;
-                                                font-family:
-                                                    Arial, Helvetica, sans-serif;
-                                                font-size: 11px;
-                                                line-height: 1.4;
-                                                color: #7a8fa3;
-                                            "
-                                        >
-                                            {{GYM1_IMAGE_CAPTION}}
-                                        </p>
-                                        {{/if GYM1_IMAGE_CAPTION}}{{#if
-                                        GYM1_IMAGE_URL}}</a
-                                    >{{/if GYM1_IMAGE_URL}}
-                                </div>
-                                {{/if GYM1_IMAGE}}
-
                                 <div
                                     style="
                                         font-family:
@@ -1125,6 +748,7 @@
                                     "
                                 >
                                     {{GYM1_COPY}}
+                                </div>
                                 </div>
 
                                 {{#if GYM1_CTA_LABEL}}
@@ -1175,6 +799,12 @@
                                     "
                                 ></div>
 
+                                <div class="clearfix">
+                                    {{#if GYM2_IMAGE}}
+                                    <div class="img-gym-float">
+                                        {{#if GYM2_IMAGE_URL}}<a href="{{GYM2_IMAGE_URL}}" style="text-decoration: none; display: block;">{{/if GYM2_IMAGE_URL}}<img src="{{GYM2_IMAGE}}" alt="{{GYM2_IMAGE_ALT}}" width="120" />{{#if GYM2_IMAGE_CAPTION}}<span class="img-caption">{{GYM2_IMAGE_CAPTION}}</span>{{/if GYM2_IMAGE_CAPTION}}{{#if GYM2_IMAGE_URL}}</a>{{/if GYM2_IMAGE_URL}}
+                                    </div>
+                                    {{/if GYM2_IMAGE}}
                                 <h3
                                     style="
                                         margin: 0 0 12px 0;
@@ -1190,42 +820,6 @@
                                 </h3>
 
                                 {{#if GYM2_IMAGE}}
-                                <div style="margin: 0 0 14px 0">
-                                    {{#if GYM2_IMAGE_URL}}<a
-                                        href="{{GYM2_IMAGE_URL}}"
-                                        style="
-                                            text-decoration: none;
-                                            display: block;
-                                        "
-                                        >{{/if GYM2_IMAGE_URL}}<img
-                                            src="{{GYM2_IMAGE}}"
-                                            alt="{{GYM2_IMAGE_ALT}}"
-                                            width="240"
-                                            style="
-                                                display: block;
-                                                max-width: 100%;
-                                                height: auto;
-                                                border: 1px solid
-                                                    rgba(45, 134, 196, 0.15);
-                                            "
-                                        />
-                                        {{#if GYM2_IMAGE_CAPTION}}
-                                        <p
-                                            style="
-                                                margin: 6px 0 0 0;
-                                                font-family:
-                                                    Arial, Helvetica, sans-serif;
-                                                font-size: 11px;
-                                                line-height: 1.4;
-                                                color: #7a8fa3;
-                                            "
-                                        >
-                                            {{GYM2_IMAGE_CAPTION}}
-                                        </p>
-                                        {{/if GYM2_IMAGE_CAPTION}}{{#if
-                                        GYM2_IMAGE_URL}}</a
-                                    >{{/if GYM2_IMAGE_URL}}
-                                </div>
                                 {{/if GYM2_IMAGE}}
 
                                 <div
@@ -1239,6 +833,7 @@
                                     "
                                 >
                                     {{GYM2_COPY}}
+                                </div>
                                 </div>
 
                                 {{#if GYM2_CTA_LABEL}}
@@ -1338,6 +933,12 @@
                                     {{LOCAL_SUBTITLE}}
                                 </h3>
 
+                                <div class="clearfix">
+                                    {{#if LOCAL_IMAGE}}
+                                    <div class="img-gym-float">
+                                        {{#if LOCAL_IMAGE_URL}}<a href="{{LOCAL_IMAGE_URL}}" style="text-decoration: none; display: block;">{{/if LOCAL_IMAGE_URL}}<img src="{{LOCAL_IMAGE}}" alt="{{LOCAL_IMAGE_ALT}}" width="120" />{{#if LOCAL_IMAGE_CAPTION}}<span class="img-caption">{{LOCAL_IMAGE_CAPTION}}</span>{{/if LOCAL_IMAGE_CAPTION}}{{#if LOCAL_IMAGE_URL}}</a>{{/if LOCAL_IMAGE_URL}}
+                                    </div>
+                                    {{/if LOCAL_IMAGE}}
                                 <div
                                     style="
                                         font-family:
@@ -1350,45 +951,7 @@
                                 >
                                     {{LOCAL_COPY}}
                                 </div>
-
-                                {{#if LOCAL_IMAGE}}
-                                <div style="margin: 20px 0 0 0">
-                                    {{#if LOCAL_IMAGE_URL}}<a
-                                        href="{{LOCAL_IMAGE_URL}}"
-                                        style="
-                                            text-decoration: none;
-                                            display: block;
-                                        "
-                                        >{{/if LOCAL_IMAGE_URL}}<img
-                                            src="{{LOCAL_IMAGE}}"
-                                            alt="{{LOCAL_IMAGE_ALT}}"
-                                            width="240"
-                                            style="
-                                                display: block;
-                                                max-width: 100%;
-                                                height: auto;
-                                                border: 1px solid
-                                                    rgba(45, 134, 196, 0.15);
-                                            "
-                                        />
-                                        {{#if LOCAL_IMAGE_CAPTION}}
-                                        <p
-                                            style="
-                                                margin: 6px 0 0 0;
-                                                font-family:
-                                                    Arial, Helvetica, sans-serif;
-                                                font-size: 11px;
-                                                line-height: 1.4;
-                                                color: #7a8fa3;
-                                            "
-                                        >
-                                            {{LOCAL_IMAGE_CAPTION}}
-                                        </p>
-                                        {{/if LOCAL_IMAGE_CAPTION}}{{#if
-                                        LOCAL_IMAGE_URL}}</a
-                                    >{{/if LOCAL_IMAGE_URL}}
                                 </div>
-                                {{/if LOCAL_IMAGE}}
                             </td>
                         </tr>
                         {{/if LOCAL_ENABLED}}
