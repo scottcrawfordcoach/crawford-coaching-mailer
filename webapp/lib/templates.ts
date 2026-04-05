@@ -135,6 +135,7 @@ export interface GymStory {
 export interface GymSection {
   enabled: boolean;
   closure_dates: string;
+  calendar_url: string;
   story1: GymStory;
   story2_enabled: boolean;
   story2: GymStory;
@@ -148,6 +149,8 @@ export interface LocalSection {
   image_alt: string;
   image_caption: string;
   image_url: string;
+  cta_label: string;
+  cta_url: string;
 }
 
 export interface NewsletterContent {
@@ -202,13 +205,13 @@ const EMPTY_STORY: GymStory = {
 };
 
 const EMPTY_GYM: GymSection = {
-  enabled: false, closure_dates: "",
+  enabled: false, closure_dates: "", calendar_url: "",
   story1: { ...EMPTY_STORY }, story2_enabled: false, story2: { ...EMPTY_STORY },
 };
 
 const EMPTY_LOCAL: LocalSection = {
   enabled: false, subtitle: "", copy: "", image: "",
-  image_alt: "", image_caption: "", image_url: "",
+  image_alt: "", image_caption: "", image_url: "", cta_label: "", cta_url: "",
 };
 
 // ---------------------------------------------------------------------------
@@ -280,6 +283,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     SOUL_SHARE_URL:       str(soul.share_url),
     // Gym news
     GYM_CLOSURE_DATES:   richText(gym.closure_dates),
+    GYM_CALENDAR_URL:    str(gym.calendar_url),
     GYM1_HEADING:        str(gym1.heading),
     GYM1_COPY:           richText(gym1.copy),
     GYM1_IMAGE:          resolveImageSrc(gym1.image),
@@ -303,6 +307,8 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     LOCAL_IMAGE_ALT:     str(local.image_alt),
     LOCAL_IMAGE_CAPTION: str(local.image_caption),
     LOCAL_IMAGE_URL:     str(local.image_url),
+    LOCAL_CTA_LABEL:     str(local.cta_label),
+    LOCAL_CTA_URL:       str(local.cta_url),
     // Footer / runtime
     CURRENT_YEAR:    new Date().getFullYear().toString(),
     FIRST_NAME:      "there",
@@ -330,6 +336,8 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     LOCAL_IMAGE:         Boolean(local.image),
     LOCAL_IMAGE_URL:     Boolean(local.image_url) && Boolean(local.image),
     LOCAL_IMAGE_CAPTION: Boolean(local.image_caption) && Boolean(local.image),
+    LOCAL_CTA_LABEL:     Boolean(local.cta_label),
+    GYM_CALENDAR_URL:    Boolean(gym.calendar_url),
 
     BODY_CTA_LABEL:    Boolean(body.cta_label),
     THOUGHT_CTA_LABEL: Boolean(thought.cta_label),

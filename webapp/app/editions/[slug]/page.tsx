@@ -57,6 +57,7 @@ const EMPTY_CONTENT: NewsletterContent = {
   gym_news: {
     enabled: false,
     closure_dates: "",
+    calendar_url: "",
     story1: { ...EMPTY_STORY },
     story2_enabled: false,
     story2: { ...EMPTY_STORY },
@@ -69,6 +70,8 @@ const EMPTY_CONTENT: NewsletterContent = {
     image_alt: "",
     image_caption: "",
     image_url: "",
+    cta_label: "",
+    cta_url: "",
   },
 };
 
