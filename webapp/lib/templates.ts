@@ -331,6 +331,11 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     LOCAL_IMAGE_URL:     Boolean(local.image_url) && Boolean(local.image),
     LOCAL_IMAGE_CAPTION: Boolean(local.image_caption) && Boolean(local.image),
 
+    BODY_CTA_LABEL:    Boolean(body.cta_label),
+    THOUGHT_CTA_LABEL: Boolean(thought.cta_label),
+    BRAIN_CTA_LABEL:   Boolean(brain.cta_label),
+    SOUL_CTA_LABEL:    Boolean(soul.cta_label),
+
     BODY_SHARE_URL:    Boolean(body.share_url),
     THOUGHT_SHARE_URL: Boolean(thought.share_url),
     BRAIN_SHARE_URL:   Boolean(brain.share_url),
