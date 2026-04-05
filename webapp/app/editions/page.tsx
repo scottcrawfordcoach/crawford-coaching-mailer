@@ -10,7 +10,38 @@ export default async function EditionsPage() {
     redirect("/login");
   }
 
-  const supabase = getSupabaseClient();
+  let supabase: ReturnType<typeof getSupabaseClient> | null = null;
+  let configError = "";
+
+  try {
+    supabase = getSupabaseClient();
+  } catch (error) {
+    configError = error instanceof Error ? error.message : "Supabase is not configured.";
+  }
+
+  if (!supabase) {
+    return (
+      <div className="min-h-screen bg-ink">
+        <Nav />
+        <main className="max-w-3xl mx-auto px-6 py-10">
+          <div className="bg-slate border border-red-500/40 rounded-sm px-6 py-5">
+            <p className="font-serif text-white text-xl">Configuration Required</p>
+            <p className="text-mist text-sm font-sans mt-2">
+              {configError}
+            </p>
+            <p className="text-mist text-sm font-sans mt-3">
+              Set these Vercel environment variables for this project, then redeploy:
+            </p>
+            <ul className="text-mist text-sm font-sans mt-2 space-y-1 list-disc pl-5">
+              <li>SUPABASE_URL</li>
+              <li>SUPABASE_SERVICE_ROLE_KEY</li>
+              <li>TOOL_PASSWORD</li>
+            </ul>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   // Fetch edition folders from Supabase storage
   const { data: storageData } = await supabase.storage
