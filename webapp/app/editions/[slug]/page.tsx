@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Nav from "@/components/Nav";
 import PreviewPanel from "@/components/PreviewPanel";
@@ -82,9 +82,33 @@ export default function EditionPage() {
 
   const [form, setForm] = useState<NewsletterContent>(EMPTY_CONTENT);
   const [previewHtml, setPreviewHtml] = useState("");
+  const [previewKey, setPreviewKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+  const [leftWidth, setLeftWidth] = useState(520);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartX = useRef<number>(0);
+  const dragStartWidth = useRef<number>(520);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = leftWidth;
+    setIsDragging(true);
+
+    function onMouseMove(ev: MouseEvent) {
+      const newWidth = Math.min(800, Math.max(280, dragStartWidth.current + ev.clientX - dragStartX.current));
+      setLeftWidth(newWidth);
+    }
+    function onMouseUp() {
+      setIsDragging(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    }
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [leftWidth]);
 
   // -------------------------------------------------------------------------
   // State updaters
@@ -176,6 +200,7 @@ export default function EditionPage() {
     const html = await res.text();
     setPreviewHtml(html || "");
     setPreviewing(false);
+    setPreviewKey((k) => k + 1);
   }
 
   function handleExportJson() {
@@ -405,14 +430,14 @@ export default function EditionPage() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="h-screen flex flex-col bg-ink overflow-hidden">
+    <div className={`h-screen flex flex-col bg-ink overflow-hidden${isDragging ? " select-none" : ""}`}>
       <Nav />
 
       <div className="flex flex-1 overflow-hidden">
         {/* ---------------------------------------------------------------- */}
         {/* LEFT: scrollable form column                                      */}
         {/* ---------------------------------------------------------------- */}
-        <div className="w-[520px] flex-shrink-0 overflow-y-auto border-r border-fog flex flex-col">
+        <div style={{ width: leftWidth, flexShrink: 0 }} className="overflow-y-auto border-fog flex flex-col">
           <div className="flex-1 px-6 py-6 space-y-6">
 
             {/* ============================================================ */}
@@ -680,10 +705,19 @@ export default function EditionPage() {
         </div>
 
         {/* ---------------------------------------------------------------- */}
+        {/* DRAG HANDLE                                                       */}
+        {/* ---------------------------------------------------------------- */}
+        <div
+          onMouseDown={handleDragStart}
+          className="w-1.5 flex-shrink-0 bg-fog/30 hover:bg-brand-blue/60 active:bg-brand-blue cursor-col-resize transition-colors"
+          title="Drag to resize"
+        />
+
+        {/* ---------------------------------------------------------------- */}
         {/* RIGHT: preview panel                                              */}
         {/* ---------------------------------------------------------------- */}
         <div className="flex-1 overflow-hidden p-4">
-          <PreviewPanel html={previewHtml} loading={previewing} />
+          <PreviewPanel key={previewKey} html={previewHtml} loading={previewing} />
         </div>
       </div>
     </div>
