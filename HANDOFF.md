@@ -1,248 +1,201 @@
 # Crawford Coaching Mailer — Handoff Note
 
 **Session date:** current  
-**Reason for handoff:** Rebooting from Windows to Linux dual-boot to continue Next.js webapp build  
-**Next session should start at:** Step 3 — Landing page
+**Reason for handoff:** Switching from Zed (Flatpak) to VS Code for better terminal access  
+**Next session should start at:** Git push → Vercel deploy → smoke test
 
 ---
 
-## Why Linux
+## Current state
 
-Next.js dynamic routes use `[slug]` directory names. Windows / Node.js cannot
-handle square brackets in filesystem paths reliably (EISDIR on readlink). The
-webapp will build and run correctly on Linux without any code changes.
+All code is written and TypeScript-clean. The webapp is **not yet pushed to git**.
+The next action is a `git add / commit / push` from a real terminal (VS Code integrated
+terminal works fine), then verify the Vercel deploy.
 
 ---
 
 ## Project location
 
 ```
-E:\crawford-coaching-mailer\   (Windows)
-/mnt/e/crawford-coaching-mailer/   (WSL / Linux path to same files)
+/mnt/e/crawford-coaching-mailer/   (WSL path — adjust mount letter if needed)
 ```
 
-The Linux path will depend on your mount. The project is a single repo — no
-separate clone needed if using the same drive.
+Node modules are installed (`webapp/node_modules/` exists).  
+`.env.local` still needs to be created for local dev (see below).  
+Vercel environment variables are already set in the Vercel dashboard.  
+Migration `003_edition_slug.sql` has already been run in Supabase.
 
 ---
 
 ## What is complete
 
-### Python pipeline (fully working)
+### Python pipeline (fully working, no changes needed)
 
 | File | Status |
 |---|---|
 | `renderer.py` | Rewritten — JSON input, Anthropic proofreading, archive output |
-| `templates/newsletter.html` | Updated — new placeholders (BODY_SUBTITLE etc.), EDITION_LABEL, per-story gym section, image captions/URLs |
-| `newsletter-form.html` | In project root — standalone browser form, exports JSON to clipboard |
+| `templates/newsletter.html` | Updated — all placeholders, EDITION_LABEL, per-story gym section, image captions/URLs |
+| `newsletter-form.html` | Standalone browser form in project root — exports JSON to clipboard |
 | `send.py` | Updated — render_newsletter call signature fixed |
 | `content/15-becoming-a-snacker.json` | Example edition content, Issue 15 |
-| `requirements.txt` | Added anthropic, python-dotenv |
+| `requirements.txt` | Includes anthropic, python-dotenv |
 | `.env` | Contains ANTHROPIC_API_KEY — loaded automatically by renderer.py |
-| `assets/` | Created (empty — images go here per edition for local preview) |
-| `content/` | Created |
 
-Test the Python pipeline any time:
+Test any time:
 ```bash
 python renderer.py content/15-becoming-a-snacker.json
 # output: archives/15-becoming-a-snacker/rendered.html
 ```
 
-### Database migration
+---
 
-`migrations/003_edition_slug.sql` — adds `edition_slug` column to
-`sent_campaigns`. Run this against Supabase before the webapp goes live.
+### webapp/ — fully built, TypeScript clean
 
-### webapp/ structure (built, not yet verified on Linux)
-
-All files created. Node modules not committed — run `npm install` first.
-
-**Structural / config (all complete, no changes needed):**
+#### Config / shell (no changes needed)
 - `webapp/package.json`
 - `webapp/tsconfig.json`
-- `webapp/tailwind.config.ts`
-- `webapp/next.config.mjs` — includes `webpack: config.resolve.symlinks = false` (keep this)
+- `webapp/tailwind.config.ts` — custom color tokens: ink, slate, slate-mid, fog, mist, pale, white, brand-blue
+- `webapp/next.config.mjs` — `config.resolve.symlinks = false` (keep this)
 - `webapp/postcss.config.js`
 - `webapp/next-env.d.ts`
+- `webapp/vercel.json` — buildCommand, outputDirectory, framework: nextjs
 
-**App shell (all complete, no changes needed):**
-- `webapp/app/globals.css` — Tailwind base + custom classes (field, label, btn-primary, btn-ghost)
+#### App shell
+- `webapp/app/globals.css` — Tailwind base + `.field`, `.label`, `.btn-primary`, `.btn-ghost`, `.chip`
 - `webapp/app/layout.tsx` — HTML shell, Google Fonts (Cormorant Garamond, Libre Baskerville, Jost)
 - `webapp/app/page.tsx` — root redirect: unauthenticated → /login, authenticated → /editions
-- `webapp/app/login/page.tsx` — passcode gate, posts to /api/auth
+- `webapp/app/login/page.tsx` — passcode gate, POSTs to /api/auth
 
-**Auth (complete, no changes needed):**
-- `webapp/lib/auth.ts` — checkSession / setSessionCookie / clearSessionCookie
+#### Auth
+- `webapp/lib/auth.ts` — `checkSession()` / `setSessionCookie()` / `clearSessionCookie()`
 - `webapp/app/api/auth/route.ts` — POST (login) / DELETE (logout)
-- Env var required: `TOOL_PASSWORD`
+- Env var: `TOOL_PASSWORD`
 
-**Supabase client (complete):**
-- `webapp/lib/supabase.ts` — getSupabaseClient() + newsletterPublicUrl()
-- Env vars required: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+#### Supabase client
+- `webapp/lib/supabase.ts` — `getSupabaseClient()` + `newsletterPublicUrl()`
+- Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
-**Template rendering (complete):**
-- `webapp/lib/templates.ts` — full TypeScript port of renderer.py
-  - Exports: `NewsletterContent`, `FoodSection`, `GymSection`, `LocalSection`, `GymStory`
+#### Template rendering
+- `webapp/lib/templates.ts` — TypeScript port of renderer.py
+  - Types: `NewsletterContent`, `FoodSection`, `GymSection`, `LocalSection`, `GymStory`
   - Exports: `renderNewsletterPreview(data: Partial<NewsletterContent>): string`
-  - Loads from `webapp/templates/newsletter.html` (copy of project root template)
+  - Reads from `webapp/templates/newsletter.html`
 - `webapp/templates/newsletter.html` — copy of root `templates/newsletter.html`
 - `webapp/templates/general.html` — copy of root `templates/general.html`
 
-**API routes (complete):**
+#### API routes
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/auth` | POST | Login — sets session cookie |
-| `/api/auth` | DELETE | Logout |
-| `/api/preview` | POST | Render newsletter HTML preview |
-| `/api/assets` | POST | Upload image → `newsletters/{slug}/images/{file}` |
+| `/api/auth` | POST | Login — sets 7-day session cookie |
+| `/api/auth` | DELETE | Logout — clears cookie |
+| `/api/preview` | POST | Body: `{ vars: Partial<NewsletterContent> }` → returns raw HTML |
+| `/api/assets` | POST | FormData `{ file, slug }` → uploads to `newsletters/{slug}/images/` → returns `{ url, filename }` |
 | `/api/editions` | GET | List edition folders from Supabase storage |
-| `/api/editions` | POST | Create new edition folder + stub content.json |
-| `/api/editions/[slug]` | GET | Load content.json for an edition |
-| `/api/editions/[slug]` | PUT | Save content.json for an edition |
+| `/api/editions` | POST | Body: `{ slug }` → create folder + empty content.json |
+| `/api/editions/[slug]` | GET | Returns `{ content: NewsletterContent \| null }` |
+| `/api/editions/[slug]` | PUT | Body: NewsletterContent → saves content.json, upsert |
 
-**Components (complete):**
-- `webapp/components/PreviewPanel.tsx` — iframe preview, unchanged from archive
-- `webapp/components/Nav.tsx` — Editions link + Sign Out button
+#### Components
+- `webapp/components/Nav.tsx` — top bar: "Crawford Coaching" wordmark, Editions link, Sign Out
+- `webapp/components/PreviewPanel.tsx` — iframe that writes HTML via `doc.write()`
+- `webapp/components/NewEditionModal.tsx` — inline expandable form: edition number + title → computes slug → POST /api/editions → router.push
+- `webapp/components/ImageUpload.tsx` — drag-and-drop or click-to-browse; POSTs to /api/assets; shows filename badge when URL is set
 
----
-
-## What is NOT yet built (do these in order)
-
-### Step 3 — Landing page: `webapp/app/editions/page.tsx`
-
-A server component. Needs to:
-1. Check session — redirect to /login if not authenticated
-2. Fetch edition folder list via Supabase storage (`newsletters/` bucket, top-level folders)
-3. Fetch most recent sent campaign from `sent_campaigns` table (order by sent_at desc, limit 1)
-   — join with `campaign_events` for open/click/unsubscribe counts
-4. Render:
-   - Analytics card at top (most recent send: subject, sent date, recipients, open rate, clicks, unsubs)
-   - "New Edition" button → opens a modal or inline form: edition number + article title inputs
-     — slug computed as `{number}-{slugified-title}` (lowercase, spaces to hyphens)
-     — POST to /api/editions → redirects to /editions/{slug}
-   - Edition list below: one row per folder, showing slug + "Sent ✓" or "Draft" status
-     (match folder name against `edition_slug` in sent_campaigns to determine status)
-   - Each edition row links to /editions/{slug}
-
-Layout uses Nav component at top.
-
-Design language: dark theme (bg-ink, cards bg-slate, borders border-fog, text-pale).
-Keep it simple and functional — this is a private tool.
-
-### Step 4 — Edition form: `webapp/app/editions/[slug]/page.tsx`
-
-A client component. Split-screen layout: form left (~520px), preview right (fills remaining space).
-
-On mount:
-- GET /api/editions/{slug} → pre-fill all form fields if content.json exists
-
-Fields match `newsletter-form.html` exactly (same field names, same sections):
-- Edition Details: edition_label, subject
-- Intro: intro_title, intro_tagline, intro_body (tall textarea), full_blog_url, blogcast_url, subscribe_url
-- Food for the Body: subtitle, copy (tall textarea), image (text + drag-drop upload), image_alt,
-  image_caption, image_url, image_layout (portrait/landscape select), cta_label, cta_url
-- Food for Thought: same fields
-- Food for the Brain: same fields
-- Food for the Soul: same fields
-- Gym News (optional toggle): enabled checkbox, closure_dates, then story1 fields
-  (heading, copy, image+upload, image_alt, image_caption, image_url, cta_label, cta_url),
-  story2_enabled checkbox, story2 same fields
-- Local News (optional toggle): enabled checkbox, subtitle, copy, image+upload,
-  image_alt, image_caption, image_url
-
-Image upload behaviour (on each image field):
-- Drag-drop zone OR click-to-browse
-- On file drop/select: POST to /api/assets with { file, slug }
-- On success: auto-fill the image URL field with the returned Supabase URL
-
-Action bar (sticky at bottom of form column):
-- "Save" button → PUT /api/editions/{slug} with current form state → show brief "Saved" confirmation
-- "Preview" button → POST /api/preview with current form state → update PreviewPanel
-- "Export JSON" button → JSON.stringify current state → copy to clipboard (same as newsletter-form.html)
-- Auto-save on blur (optional, nice to have)
-
-Preview panel (right column):
-- Uses PreviewPanel component (already built)
-- Initially empty with placeholder text
-- Updated on Preview button click
-
-Nav at top (already built).
-
-### Step 5 — Vercel deployment config
-
-Create `webapp/vercel.json`:
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "framework": "nextjs"
-}
-```
-
-Set these environment variables in the Vercel project settings:
-- `TOOL_PASSWORD` — shared passcode for the tool
-- `SUPABASE_URL` — e.g. https://yxndmpwqvdatkujcukdv.supabase.co
-- `SUPABASE_SERVICE_ROLE_KEY` — service role key (server-side only, never public)
-
-In Vercel project settings, set **Root Directory** to `webapp`.
+#### Pages
+- `webapp/app/editions/page.tsx` — **Server Component**
+  - Session guard → redirect /login
+  - Fetches storage folders, most recent campaign + event counts (opens/clicks/unsubs), all sent slugs
+  - Renders: analytics card, Editions heading + New Edition button, edition list (Draft / Sent ✓)
+- `webapp/app/editions/[slug]/page.tsx` — **Client Component**
+  - `h-screen` split: 520px scrollable form left | flex-1 preview right
+  - All 8 form sections: Edition Details, Introduction, Food ×4, Gym News (optional, up to 2 stories), Local News (optional)
+  - `ImageUpload` on every image field — auto-fills filename + URL on upload
+  - Sticky action bar: Save → PUT content.json · Preview → POST /api/preview → iframe · Export JSON → clipboard
+  - On mount: GET content.json, deep-merge with empty defaults
 
 ---
 
-## First actions when you boot into Linux
+## Immediate next actions
+
+### 1. Push to git (from VS Code terminal)
 
 ```bash
-# 1. Navigate to the project (adjust mount path if needed)
-cd /mnt/e/crawford-coaching-mailer/webapp
+git add webapp/app/editions/page.tsx \
+        "webapp/app/editions/[slug]/page.tsx" \
+        webapp/components/NewEditionModal.tsx \
+        webapp/components/ImageUpload.tsx \
+        webapp/vercel.json
 
-# 2. Install dependencies
-npm install
+git commit -m "feat: add editions landing page, editor, and vercel config (steps 3-5)"
 
-# 3. Create .env.local for local dev
+git push
+```
+
+### 2. Verify Vercel settings
+
+In the Vercel project dashboard:
+- **Root Directory:** `webapp`
+- **Framework Preset:** Next.js
+- **Environment Variables** (all three must be present):
+  - `TOOL_PASSWORD`
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+
+### 3. Smoke test after deploy
+
+1. Open the deployed URL → should redirect to `/login`
+2. Enter password → should land on `/editions`
+3. If the `sent_campaigns` table has rows, the analytics card appears at top
+4. Click **+ New Edition** → enter a number + title → Create → should navigate to `/editions/{slug}`
+5. Fill in Edition Details + Introduction → click **Preview** → right panel should render the email
+6. Click **Save** → should show "Saved ✓" briefly
+7. Upload an image in a food section → filename badge should appear; URL field should auto-populate
+
+### 4. Local dev (optional, for faster iteration)
+
+```bash
+cd webapp
+
+# Create .env.local if it doesn't exist yet
 cat > .env.local << 'EOF'
 TOOL_PASSWORD=your-passcode-here
 SUPABASE_URL=https://yxndmpwqvdatkujcukdv.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 EOF
 
-# 4. Verify the build works
-npm run build
-
-# 5. If build passes, start dev server and open http://localhost:3000
-npm run dev
+npm run build   # verify — should produce no errors
+npm run dev     # http://localhost:3000
 ```
 
-If the build passes, proceed to Step 3 (landing page).
-If there are TypeScript errors, they will be specific and fixable — check diagnostics.
+---
+
+## Supabase storage requirements
+
+- `newsletters` bucket must exist and allow service-role reads + writes
+- `mail-assets` bucket exists with fixed assets (header, logo, badges)
+- `migrations/003_edition_slug.sql` — **already run** ✓
 
 ---
 
-## Supabase storage bucket requirements
-
-The `newsletters` bucket must exist in Supabase storage and allow authenticated
-(service role) reads and writes. The `mail-assets` bucket already exists with
-the fixed assets (header, logo, badges).
-
-Run `migrations/003_edition_slug.sql` against the Supabase database before testing
-the landing page analytics card.
-
----
-
-## Key design decisions already made
+## Key design decisions
 
 - **Slug format:** `{number}-{slugified-title}` e.g. `15-becoming-a-snacker`
-- **Content format:** JSON matching the schema in `webapp/lib/templates.ts` (`NewsletterContent`)
-- **Template:** Python renderer and webapp both read `newsletter.html` — Python from
-  `templates/newsletter.html`, webapp from `webapp/templates/newsletter.html` (a copy).
-  When the template changes, update both copies.
-- **Python renderer stays local** for final render before sending (all image URLs
-  must be Supabase public URLs at that point). The webapp handles content editing
-  and preview only.
-- **No Supabase Auth** — simple shared passcode (`TOOL_PASSWORD` env var).
-  7-day session cookie. Suitable for a private single-user tool.
-- **Analytics join:** `sent_campaigns.edition_slug` (added in migration 003) links
-  database campaign rows to storage folder names. Populate this when sending via webapp.
+- **Content format:** JSON matching `NewsletterContent` in `webapp/lib/templates.ts`
+- **Preview API:** expects `{ vars: Partial<NewsletterContent> }`, returns raw `text/html` (not JSON)
+- **Template copies:** `templates/newsletter.html` (Python) and `webapp/templates/newsletter.html` (webapp) must be kept in sync when the template changes
+- **Python renderer stays local** — used for final send only, after all image URLs are Supabase public URLs. The webapp is for editing and preview only.
+- **No Supabase Auth** — shared passcode via `TOOL_PASSWORD`. 7-day session cookie. Fine for a private single-user tool.
+- **Analytics join:** `sent_campaigns.edition_slug` links DB campaign rows to storage folders. Populate this column when the send flow is built.
+- **`config.resolve.symlinks = false`** in `next.config.mjs` — keep this, required for the `[slug]` dynamic route to resolve correctly.
 
 ---
 
-*End of handoff. Resume at Step 3.*
+## What is NOT yet built
+
+- **Send flow** — the workflow for doing a final render via `renderer.py` and dispatching the newsletter via the Python mailer. This is intentionally kept as a local Python step for now.
+- **Edition slug written to `sent_campaigns`** — when a send is triggered, `edition_slug` should be saved alongside the campaign row so the landing page analytics card links back to the correct edition.
+
+---
+
+*End of handoff. Next step: git push and Vercel smoke test.*
