@@ -93,6 +93,54 @@ def _process_conditionals(html: str, flags: dict[str, bool]) -> str:
 # ── Text helpers ──────────────────────────────────────────────────────────────
 
 
+def _linkify_escaped_text(escaped_text: str) -> str:
+    """
+    Converts markdown-style links and plain URLs to <a> tags.
+    Input must already be HTML-escaped.
+    """
+    token_prefix = "__CC_LINK_"
+    links: list[str] = []
+
+    def stash(html: str) -> str:
+        token = f"{token_prefix}{len(links)}__"
+        links.append(html)
+        return token
+
+    def markdown_repl(match: re.Match[str]) -> str:
+        label = match.group(1)
+        url = match.group(2)
+        return stash(
+            f'<a href="{url}" style="color:#2d86c4;text-decoration:underline;">{label}</a>'
+        )
+
+    result = re.sub(
+        r"\[([^\]]+)\]\((https?://[^\s)]+)\)",
+        markdown_repl,
+        escaped_text,
+    )
+
+    def url_repl(match: re.Match[str]) -> str:
+        raw_url = match.group(0)
+        url = raw_url
+        trailing = ""
+        trailing_match = re.search(r"[.,!?;:]+$", url)
+        if trailing_match:
+            trailing = trailing_match.group(0)
+            url = url[: -len(trailing)]
+
+        return (
+            f"{stash(f'<a href=\"{url}\" style=\"color:#2d86c4;text-decoration:underline;\">{url}</a>')}"
+            f"{trailing}"
+        )
+
+    result = re.sub(r"https?://[^\s<]+", url_repl, result)
+
+    for idx, html in enumerate(links):
+        result = result.replace(f"{token_prefix}{idx}__", html)
+
+    return result
+
+
 def _rich_text(value: Any) -> str:
     """
     Passes HTML through unchanged. Converts plain text to escaped HTML,
@@ -105,7 +153,7 @@ def _rich_text(value: Any) -> str:
         return text
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
     return "\n".join(
-        f'<p style="margin:0 0 16px 0;">{escape(p).replace(chr(10), "<br>")}</p>'
+        f'<p style="margin:0 0 16px 0;">{_linkify_escaped_text(escape(p)).replace(chr(10), "<br>")}</p>'
         for p in paragraphs
     )
 

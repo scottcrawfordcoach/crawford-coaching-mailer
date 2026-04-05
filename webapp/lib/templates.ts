@@ -32,6 +32,47 @@ function processConditionals(html: string, flags: Record<string, boolean>): stri
 // Text helpers — mirror renderer.py's _rich_text and _str
 // ---------------------------------------------------------------------------
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function linkifyEscapedText(escapedText: string): string {
+  const tokenPrefix = "__CC_LINK_";
+  const links: string[] = [];
+
+  const stash = (html: string) => {
+    const token = `${tokenPrefix}${links.length}__`;
+    links.push(html);
+    return token;
+  };
+
+  // Support markdown-style links in plain text: [label](https://example.com)
+  let result = escapedText.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
+    return stash(`<a href="${url}" style="color:#2d86c4;text-decoration:underline;">${label}</a>`);
+  });
+
+  // Auto-link bare URLs in plain text.
+  result = result.replace(/https?:\/\/[^\s<]+/g, (rawUrl) => {
+    let url = rawUrl;
+    let trailing = "";
+
+    const trailingMatch = url.match(/[.,!?;:]+$/);
+    if (trailingMatch) {
+      trailing = trailingMatch[0];
+      url = url.slice(0, -trailing.length);
+    }
+
+    return `${stash(`<a href="${url}" style="color:#2d86c4;text-decoration:underline;">${url}</a>`)}${trailing}`;
+  });
+
+  return links.reduce((acc, html, idx) => acc.replace(`${tokenPrefix}${idx}__`, html), result);
+}
+
 function richText(value: string | null | undefined): string {
   const text = (value ?? "").trim();
   if (!text) return "";
@@ -39,7 +80,10 @@ function richText(value: string | null | undefined): string {
   return text
     .split(/\n\n+/)
     .filter(Boolean)
-    .map((p) => `<p style="margin:0 0 16px 0;">${p.trim().replace(/\n/g, "<br>")}</p>`)
+    .map((p) => {
+      const linked = linkifyEscapedText(escapeHtml(p.trim()));
+      return `<p style="margin:0 0 16px 0;">${linked.replace(/\n/g, "<br>")}</p>`;
+    })
     .join("\n");
 }
 
