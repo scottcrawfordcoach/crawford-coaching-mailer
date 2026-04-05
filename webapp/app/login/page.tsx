@@ -22,7 +22,7 @@ export default function LoginPage() {
 
     setLoading(false);
     if (res.ok) {
-      router.push("/compose");
+      router.push("/editions");
     } else {
       const data = await res.json().catch(() => null);
       setError(data?.error || "Login failed.");
