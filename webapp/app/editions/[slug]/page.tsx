@@ -222,7 +222,7 @@ export default function EditionPage() {
         <p className="text-xs font-sans font-medium tracking-widest uppercase text-mist">Image</p>
 
         <div>
-          <label className="label">Filename</label>
+          <label className="label">Image Source URL</label>
           <input
             className="field"
             value={values.image}
@@ -231,9 +231,9 @@ export default function EditionPage() {
           <div className="mt-2">
             <ImageUpload
               slug={slug}
-              currentUrl={values.image_url}
-              onUploaded={(url, filename) => {
-                onChange("image", filename);
+              currentUrl={values.image}
+              onUploaded={(url, _filename) => {
+                onChange("image", url);
                 onChange("image_url", url);
               }}
             />
