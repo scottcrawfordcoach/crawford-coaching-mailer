@@ -91,6 +91,19 @@ function str(value: string | null | undefined): string {
   return (value ?? "").trim();
 }
 
+// Resolves a legacy relative image path (e.g. "assets/15-becoming-a-snacker/rx-bar.png")
+// to its full Supabase public URL. Absolute URLs are returned unchanged.
+function resolveImageSrc(image: string | null | undefined): string {
+  const val = (image ?? "").trim();
+  if (!val || val.startsWith("http")) return val;
+  // Pattern: assets/{slug}/{filename}  — extract last two segments
+  const parts = val.replace(/\\/g, "/").split("/").filter(Boolean);
+  const filename = parts[parts.length - 1] ?? "";
+  const slug = parts[parts.length - 2] ?? "";
+  const base = process.env.SUPABASE_URL ?? "";
+  return `${base}/storage/v1/object/public/newsletters/${slug}/images/${filename}`;
+}
+
 // ---------------------------------------------------------------------------
 // Content types — match content.json schema exactly
 // ---------------------------------------------------------------------------
@@ -228,7 +241,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     // Food for the Body
     BODY_SUBTITLE:       str(body.subtitle),
     BODY_COPY:           richText(body.copy),
-    BODY_IMAGE:          str(body.image),
+    BODY_IMAGE:          resolveImageSrc(body.image),
     BODY_IMAGE_ALT:      str(body.image_alt),
     BODY_IMAGE_CAPTION:  str(body.image_caption),
     BODY_IMAGE_URL:      str(body.image_url),
@@ -238,7 +251,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     // Food for Thought
     THOUGHT_SUBTITLE:       str(thought.subtitle),
     THOUGHT_COPY:           richText(thought.copy),
-    THOUGHT_IMAGE:          str(thought.image),
+    THOUGHT_IMAGE:          resolveImageSrc(thought.image),
     THOUGHT_IMAGE_ALT:      str(thought.image_alt),
     THOUGHT_IMAGE_CAPTION:  str(thought.image_caption),
     THOUGHT_IMAGE_URL:      str(thought.image_url),
@@ -248,7 +261,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     // Food for the Brain
     BRAIN_SUBTITLE:       str(brain.subtitle),
     BRAIN_COPY:           richText(brain.copy),
-    BRAIN_IMAGE:          str(brain.image),
+    BRAIN_IMAGE:          resolveImageSrc(brain.image),
     BRAIN_IMAGE_ALT:      str(brain.image_alt),
     BRAIN_IMAGE_CAPTION:  str(brain.image_caption),
     BRAIN_IMAGE_URL:      str(brain.image_url),
@@ -258,7 +271,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     // Food for the Soul
     SOUL_SUBTITLE:        str(soul.subtitle),
     SOUL_COPY:            richText(soul.copy),
-    SOUL_IMAGE:           str(soul.image),
+    SOUL_IMAGE:           resolveImageSrc(soul.image),
     SOUL_IMAGE_ALT:       str(soul.image_alt),
     SOUL_IMAGE_CAPTION:   str(soul.image_caption),
     SOUL_IMAGE_URL:       str(soul.image_url),
@@ -269,7 +282,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     GYM_CLOSURE_DATES:   richText(gym.closure_dates),
     GYM1_HEADING:        str(gym1.heading),
     GYM1_COPY:           richText(gym1.copy),
-    GYM1_IMAGE:          str(gym1.image),
+    GYM1_IMAGE:          resolveImageSrc(gym1.image),
     GYM1_IMAGE_ALT:      str(gym1.image_alt),
     GYM1_IMAGE_CAPTION:  str(gym1.image_caption),
     GYM1_IMAGE_URL:      str(gym1.image_url),
@@ -277,7 +290,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     GYM1_CTA_URL:        str(gym1.cta_url),
     GYM2_HEADING:        str(gym2.heading),
     GYM2_COPY:           richText(gym2.copy),
-    GYM2_IMAGE:          str(gym2.image),
+    GYM2_IMAGE:          resolveImageSrc(gym2.image),
     GYM2_IMAGE_ALT:      str(gym2.image_alt),
     GYM2_IMAGE_CAPTION:  str(gym2.image_caption),
     GYM2_IMAGE_URL:      str(gym2.image_url),
@@ -286,7 +299,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     // Local news
     LOCAL_SUBTITLE:      str(local.subtitle),
     LOCAL_COPY:          richText(local.copy),
-    LOCAL_IMAGE:         str(local.image),
+    LOCAL_IMAGE:         resolveImageSrc(local.image),
     LOCAL_IMAGE_ALT:     str(local.image_alt),
     LOCAL_IMAGE_CAPTION: str(local.image_caption),
     LOCAL_IMAGE_URL:     str(local.image_url),
