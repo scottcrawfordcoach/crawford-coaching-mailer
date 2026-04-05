@@ -16,7 +16,7 @@ function loadTemplate(name: "general" | "newsletter"): string {
 // ---------------------------------------------------------------------------
 
 function processConditionals(html: string, flags: Record<string, boolean>): string {
-  const pattern = /\{\{#if ([A-Z_]+)\}\}([\s\S]*?)\{\{\/if \1\}\}/g;
+  const pattern = /\{\{#if\s+([A-Z0-9_]+)\s*\}\}([\s\S]*?)\{\{\/if\s+\1\s*\}\}/g;
   let result = html;
   let prev = "";
   while (prev !== result) {

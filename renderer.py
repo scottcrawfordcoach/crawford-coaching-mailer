@@ -75,7 +75,7 @@ def _process_conditionals(html: str, flags: dict[str, bool]) -> str:
     supported — the template uses the simpler positive-only pattern.
     Runs in a loop until stable to handle nested conditionals.
     """
-    pattern = re.compile(r"\{\{#if ([A-Z_]+)\}\}([\s\S]*?)\{\{/if \1\}\}")
+    pattern = re.compile(r"\{\{#if\s+([A-Z0-9_]+)\s*\}\}([\s\S]*?)\{\{/if\s+\1\s*\}\}")
 
     def repl(match: re.Match[str]) -> str:
         tag = match.group(1)
