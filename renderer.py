@@ -989,6 +989,21 @@ def main() -> None:
     print(f"Rendered: {out_path}")
     print(f"Preview:  file://{out_path.resolve()}")
 
+    # Upload rendered HTML to Supabase edition folder
+    if os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
+        try:
+            rendered_url = _upload_to_supabase(
+                "newsletters",
+                f"{slug}/rendered.html",
+                html,
+                "text/html",
+            )
+            print(f"Uploaded: {rendered_url}")
+        except Exception as e:
+            print(f"Warning: Failed to upload rendered HTML to Supabase: {e}")
+    else:
+        print("Skipping Supabase upload (missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)")
+
 
 if __name__ == "__main__":
     main()
