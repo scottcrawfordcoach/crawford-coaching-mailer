@@ -224,6 +224,297 @@ def _resolve_image(path_or_url: str) -> str:
     return f"{base}/storage/v1/object/public/newsletters/{slug}/images/{filename}"
 
 
+# ── Supabase Storage upload ──────────────────────────────────────────────────
+
+def _upload_to_supabase(bucket: str, path: str, content: str, content_type: str = "text/html") -> str:
+    """
+    Uploads content to Supabase Storage and returns the public URL.
+    Overwrites if the file already exists.
+    Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment.
+    """
+    import urllib.request
+    import urllib.error
+
+    base = os.getenv("SUPABASE_URL", "").rstrip("/")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not base or not key:
+        raise EnvironmentError(
+            "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for upload"
+        )
+
+    upload_url = f"{base}/storage/v1/object/{bucket}/{path}"
+    data = content.encode("utf-8")
+
+    req = urllib.request.Request(
+        upload_url,
+        data=data,
+        method="PUT",
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": content_type,
+            "x-upsert": "true",
+        },
+    )
+
+    try:
+        urllib.request.urlopen(req)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Supabase upload failed ({e.code}): {body}")
+
+    return f"{base}/storage/v1/object/public/{bucket}/{path}"
+
+
+# ── Social post generation ───────────────────────────────────────────────────
+
+def _generate_social_post(
+    section_title: str,
+    section_subtitle: str,
+    section_copy: str,
+    blog_url: str,
+) -> str:
+    """
+    Generates a social media post for a newsletter section using the Anthropic API.
+    Returns a single post suitable for LinkedIn, Facebook, Twitter/X, and Instagram.
+    Always includes #crawfordcoaching plus 4 context-specific hashtags.
+    Requires ANTHROPIC_API_KEY in the environment.
+    """
+    import anthropic
+
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+    # Strip HTML tags from the copy to give the model clean text
+    clean_copy = re.sub(r"<[^>]+>", "", section_copy).strip()
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=512,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    "Write a social media post to share the following newsletter section. "
+                    "The post should be suitable for LinkedIn, Facebook, Twitter/X, and Instagram. "
+                    "Keep it under 200 words. Use a thoughtful, reflective tone that matches "
+                    "a coaching and wellness brand. Do not use excessive emojis — one or two "
+                    "at most is fine.\n\n"
+                    "At the end of the post, include exactly 5 hashtags on their own line:\n"
+                    "- #crawfordcoaching (always first, always included)\n"
+                    "- Plus 4 hashtags relevant to the specific content of this section\n\n"
+                    "After the hashtags, end with the blog link on its own line.\n\n"
+                    "Do NOT include any preamble, explanation, or options. Return ONLY the "
+                    "post text, ready to copy and paste.\n\n"
+                    f"Section: Food for the {section_title}\n"
+                    f"Subtitle: {section_subtitle}\n"
+                    f"Content:\n{clean_copy}\n\n"
+                    f"Blog link: {blog_url}"
+                ),
+            }
+        ],
+    )
+    return message.content[0].text.strip()
+
+
+# ── Sharing page builder ─────────────────────────────────────────────────────
+
+_SHARE_PAGE_TEMPLATE = """\
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Share: {section_subtitle} — Crawford Coaching</title>
+<style>
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#0e0f10;color:#c8d4de;font-family:Georgia,'Times New Roman',serif;
+  font-size:16px;line-height:1.8;min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;padding:3rem 1.5rem}}
+.card{{background:#1c2330;max-width:560px;width:100%;border-radius:4px;padding:2.5rem;
+  margin-bottom:2rem}}
+.label{{font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:0.2em;
+  text-transform:uppercase;color:#2d86c4;margin-bottom:4px}}
+h1{{font-size:22px;font-weight:700;color:#f5f3ef;margin-bottom:1.5rem;line-height:1.2}}
+.section-image{{width:100%;margin-bottom:1.5rem;border-radius:3px;overflow:hidden}}
+.section-image img{{display:block;width:100%;height:auto;
+  border:1px solid rgba(45,134,196,0.2)}}
+.save-image{{display:block;margin-top:8px;font-family:Arial,Helvetica,sans-serif;
+  font-size:11px;color:#7a8fa3;text-decoration:none;text-align:center}}
+.save-image:hover{{color:#c8d4de}}
+.post-text{{background:#232f3e;border-radius:3px;padding:1.2rem 1.4rem;
+  font-size:14px;line-height:1.75;color:#c8d4de;margin-bottom:1.5rem;
+  white-space:pre-wrap;word-wrap:break-word}}
+.btn{{display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;
+  letter-spacing:0.12em;text-transform:uppercase;color:#c8d4de;text-decoration:none;
+  border:1px solid rgba(45,134,196,0.4);border-radius:2px;padding:10px 24px;
+  cursor:pointer;background:transparent;transition:background 0.2s}}
+.btn:hover{{background:rgba(45,134,196,0.15)}}
+.btn-primary{{border-color:#2d86c4;color:#f5f3ef}}
+.btn-primary:hover{{background:#2d86c4}}
+.btn-instagram{{border-color:rgba(193,53,132,0.5);color:#c8d4de}}
+.btn-instagram:hover{{background:rgba(193,53,132,0.15)}}
+.actions{{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:1.5rem;align-items:center}}
+.copied{{color:#2d86c4;font-family:Arial,Helvetica,sans-serif;font-size:12px;
+  display:none}}
+.divider{{height:1px;background:#2a3444;margin:1.5rem 0}}
+.subscribe{{text-align:center}}
+.subscribe p{{font-size:14px;color:#7a8fa3;margin-bottom:1rem}}
+.subscribe a{{color:#2d86c4;text-decoration:underline}}
+.footer{{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#3d4a58;
+  text-align:center;margin-top:auto;padding-top:2rem}}
+.footer a{{color:#3d4a58;text-decoration:underline}}
+</style>
+</head>
+<body>
+<div class="card">
+  <p class="label">Food for the {section_title}</p>
+  <h1>{section_subtitle}</h1>
+  {image_block}
+  <div class="post-text" id="post-text">{post_text}</div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="copyPost()">Copy post text</button>
+    <span class="copied" id="copied-msg">Copied!</span>
+  </div>
+  <div class="actions">
+    <a class="btn" href="https://www.linkedin.com/sharing/share-offsite/?url={blog_url_encoded}" target="_blank" rel="noopener">Share on LinkedIn</a>
+    <a class="btn" href="https://www.facebook.com/sharer/sharer.php?u={blog_url_encoded}" target="_blank" rel="noopener">Share on Facebook</a>
+    <a class="btn" href="https://twitter.com/intent/tweet?text={tweet_encoded}" target="_blank" rel="noopener">Share on X</a>
+    <a class="btn btn-instagram" href="https://www.instagram.com/" target="_blank" rel="noopener">Open Instagram</a>
+  </div>
+  <div class="divider"></div>
+  <div class="subscribe">
+    <p>Enjoyed this? Get ideas like this delivered to your inbox.</p>
+    <a href="{subscribe_url}" class="btn">Subscribe to the newsletter</a>
+  </div>
+</div>
+<div class="footer">
+  <p>&copy; {year} Crawford Coaching &middot;
+    <a href="https://crawford-coaching.ca">crawford-coaching.ca</a></p>
+</div>
+<script>
+function copyPost(){{
+  var t=document.getElementById('post-text').innerText;
+  navigator.clipboard.writeText(t).then(function(){{
+    var m=document.getElementById('copied-msg');
+    m.style.display='inline';
+    setTimeout(function(){{m.style.display='none'}},2000);
+  }});
+}}
+</script>
+</body>
+</html>"""
+
+
+def _build_share_page(
+    section_title: str,
+    section_subtitle: str,
+    post_text: str,
+    blog_url: str,
+    subscribe_url: str,
+    image_url: str = "",
+    image_alt: str = "",
+) -> str:
+    """Builds a static HTML sharing page for a newsletter section."""
+    from urllib.parse import quote
+
+    # Build the image block (only if image_url is provided)
+    if image_url:
+        image_block = (
+            '<div class="section-image">'
+            f'<img src="{escape(image_url)}" alt="{escape(image_alt)}">'
+            f'<a class="save-image" href="{escape(image_url)}" '
+            f'download="crawford-coaching-{escape(section_title.lower())}.png">'
+            'Save image &darr;</a>'
+            '</div>'
+        )
+    else:
+        image_block = ""
+
+    # For Twitter/X, include the post text + blog URL in the tweet
+    tweet_text = post_text
+    if blog_url and blog_url not in tweet_text:
+        tweet_text = f"{tweet_text}\n\n{blog_url}"
+
+    return _SHARE_PAGE_TEMPLATE.format(
+        section_title=escape(section_title),
+        section_subtitle=escape(section_subtitle),
+        post_text=escape(post_text),
+        image_block=image_block,
+        blog_url_encoded=quote(blog_url, safe=""),
+        tweet_encoded=quote(tweet_text, safe=""),
+        subscribe_url=escape(subscribe_url or "https://crawford-coaching.ca/subscribe"),
+        year=datetime.now().year,
+    )
+
+
+# ── Social sharing orchestrator ──────────────────────────────────────────────
+
+SECTION_MAP = {
+    "food_body":    ("Body",    "body"),
+    "food_thought": ("Thought", "thought"),
+    "food_brain":   ("Brain",   "brain"),
+    "food_soul":    ("Soul",    "soul"),
+}
+
+
+def _generate_share_pages(
+    data: dict[str, Any],
+    slug: str,
+) -> dict[str, str]:
+    """
+    Generates social sharing pages for all four food sections.
+    Uploads each page to Supabase Storage.
+    Returns a dict mapping section keys to their public share page URLs.
+
+    Example return:
+        {"food_body": "https://...newsletters/15-.../socials/body.html", ...}
+    """
+    blog_url = _str(data.get("full_blog_url"))
+    subscribe_url = _str(data.get("subscribe_url"))
+    share_urls: dict[str, str] = {}
+
+    for section_key, (title, filename) in SECTION_MAP.items():
+        section = data.get(section_key) or {}
+        copy = _str(section.get("copy"))
+        subtitle = _str(section.get("subtitle"))
+
+        if not copy:
+            continue
+
+        # Resolve the section image to a full URL for the sharing page
+        image_url = _resolve_image(_str(section.get("image")))
+        image_alt = _str(section.get("image_alt"))
+
+        print(f"  Generating social post for {title}...")
+        post_text = _generate_social_post(
+            section_title=title,
+            section_subtitle=subtitle,
+            section_copy=copy,
+            blog_url=blog_url,
+        )
+
+        page_html = _build_share_page(
+            section_title=title,
+            section_subtitle=subtitle,
+            post_text=post_text,
+            blog_url=blog_url,
+            subscribe_url=subscribe_url,
+            image_url=image_url,
+            image_alt=image_alt,
+        )
+
+        # Also save the raw post text for future use
+        supabase_path_html = f"{slug}/socials/{filename}.html"
+        supabase_path_txt = f"{slug}/socials/{filename}.txt"
+
+        url = _upload_to_supabase("newsletters", supabase_path_html, page_html, "text/html")
+        _upload_to_supabase("newsletters", supabase_path_txt, post_text, "text/plain")
+
+        share_urls[section_key] = url
+        print(f"    → {url}")
+
+    return share_urls
+
+
 def _image_flags(section: dict, prefix: str) -> dict[str, bool]:
     """
     Returns the conditional flags for a food section's image.
@@ -455,6 +746,22 @@ def render_newsletter(
     Returns (rendered_html, content_data).
     """
     data = load_content(content_path)
+
+    # ── Generate social sharing pages ────────────────────────────────────────
+    slug = content_path.stem
+    if "ANTHROPIC_API_KEY" in os.environ:
+        try:
+            share_urls = _generate_share_pages(data, slug)
+            for section_key, url in share_urls.items():
+                if section_key in data and isinstance(data[section_key], dict):
+                    data[section_key]["share_url"] = url
+            print(f"  Social sharing pages generated for {len(share_urls)} sections")
+        except Exception as e:
+            print(f"  Warning: Social page generation failed: {e}")
+            print(f"  Continuing without share links.")
+    else:
+        print("  Skipping social page generation (no ANTHROPIC_API_KEY)")
+
     html = _load_template("newsletter")
 
     intro = data

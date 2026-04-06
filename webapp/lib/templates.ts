@@ -251,7 +251,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     BODY_IMAGE_URL:      str(body.image_url),
     BODY_CTA_LABEL:      str(body.cta_label),
     BODY_CTA_URL:        str(body.cta_url),
-    BODY_SHARE_URL:      str(body.share_url),
+    BODY_SHARE_URL:      str(body.share_url) || (str(body.copy) ? "#" : ""),
     // Food for Thought
     THOUGHT_SUBTITLE:       str(thought.subtitle),
     THOUGHT_COPY:           richText(thought.copy),
@@ -261,7 +261,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     THOUGHT_IMAGE_URL:      str(thought.image_url),
     THOUGHT_CTA_LABEL:      str(thought.cta_label),
     THOUGHT_CTA_URL:        str(thought.cta_url),
-    THOUGHT_SHARE_URL:      str(thought.share_url),
+    THOUGHT_SHARE_URL:      str(thought.share_url) || (str(thought.copy) ? "#" : ""),
     // Food for the Brain
     BRAIN_SUBTITLE:       str(brain.subtitle),
     BRAIN_COPY:           richText(brain.copy),
@@ -271,7 +271,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     BRAIN_IMAGE_URL:      str(brain.image_url),
     BRAIN_CTA_LABEL:      str(brain.cta_label),
     BRAIN_CTA_URL:        str(brain.cta_url),
-    BRAIN_SHARE_URL:      str(brain.share_url),
+    BRAIN_SHARE_URL:      str(brain.share_url) || (str(brain.copy) ? "#" : ""),
     // Food for the Soul
     SOUL_SUBTITLE:        str(soul.subtitle),
     SOUL_COPY:            richText(soul.copy),
@@ -281,7 +281,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     SOUL_IMAGE_URL:       str(soul.image_url),
     SOUL_CTA_LABEL:       str(soul.cta_label),
     SOUL_CTA_URL:         str(soul.cta_url),
-    SOUL_SHARE_URL:       str(soul.share_url),
+    SOUL_SHARE_URL:       str(soul.share_url) || (str(soul.copy) ? "#" : ""),
     // Gym news
     GYM_CLOSURE_DATES:   richText(gym.closure_dates),
     GYM_CALENDAR_URL:    str(gym.calendar_url),
@@ -348,10 +348,10 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     BRAIN_CTA_LABEL:   Boolean(brain.cta_label),
     SOUL_CTA_LABEL:    Boolean(soul.cta_label),
 
-    BODY_SHARE_URL:    Boolean(body.share_url),
-    THOUGHT_SHARE_URL: Boolean(thought.share_url),
-    BRAIN_SHARE_URL:   Boolean(brain.share_url),
-    SOUL_SHARE_URL:    Boolean(soul.share_url),
+    BODY_SHARE_URL:    Boolean(str(body.share_url) || (str(body.copy) ? "#" : "")),
+    THOUGHT_SHARE_URL: Boolean(str(thought.share_url) || (str(thought.copy) ? "#" : "")),
+    BRAIN_SHARE_URL:   Boolean(str(brain.share_url) || (str(brain.copy) ? "#" : "")),
+    SOUL_SHARE_URL:    Boolean(str(soul.share_url) || (str(soul.copy) ? "#" : "")),
 
     ...imageFlagsForSection(body,    "BODY"),
     ...imageFlagsForSection(thought, "THOUGHT"),
