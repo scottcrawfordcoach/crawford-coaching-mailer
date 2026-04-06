@@ -253,6 +253,7 @@ def _upload_to_supabase(bucket: str, path: str, content: str, content_type: str 
             "Authorization": f"Bearer {key}",
             "Content-Type": content_type,
             "x-upsert": "true",
+            "Cache-Control": "public, max-age=3600",
         },
     )
 
