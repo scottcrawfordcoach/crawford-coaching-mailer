@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from datetime import datetime
@@ -7,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT_DIR = Path(__file__).resolve().parent
-ARCHIVE_DIR = ROOT_DIR / "archive"
+ARCHIVE_DIR = ROOT_DIR / "archives"
 
 
 def _slugify(subject: str) -> str:
@@ -27,18 +28,20 @@ def archive_general(subject: str, rendered_html: str) -> Path:
 
 
 def archive_newsletter(
-    subject: str, rendered_html: str, newsletter_payload: dict[str, Any]
+    subject: str, rendered_html: str, newsletter_payload: dict[str, Any],
+    edition_slug: str | None = None,
 ) -> Path:
-    day = datetime.now().strftime("%Y-%m-%d")
-    out_dir = ARCHIVE_DIR / "newsletters" / f"{day}_{_slugify(subject)}"
+    slug = edition_slug or _slugify(subject)
+    out_dir = ARCHIVE_DIR / slug
     out_dir.mkdir(parents=True, exist_ok=True)
 
     rendered_path = out_dir / "rendered.html"
     rendered_path.write_text(rendered_html, encoding="utf-8")
 
-    content_path = out_dir / "content.py"
+    content_path = out_dir / "content.json"
     content_path.write_text(
-        f"newsletter = {repr(newsletter_payload)}\n", encoding="utf-8"
+        json.dumps(newsletter_payload, indent=2, ensure_ascii=False),
+        encoding="utf-8",
     )
 
     # Copy local images into the archive directory and rewrite paths

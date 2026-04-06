@@ -1,29 +1,35 @@
 # Crawford Coaching Mailer
 
-Hybrid local workflow: Python CLI for composition/orchestration, Supabase Edge Functions for sending/tracking.
-
-## Legacy Web App Archive
-
-The previous Next.js web app version has been archived (not deleted) at:
-
-- `_archive/legacy-webapp-2026-04-04/`
-
-See the archive manifest for details and restore examples:
-
-- `_archive/legacy-webapp-2026-04-04/ARCHIVE_MANIFEST.md`
+Hybrid local workflow: Python CLI for composition/orchestration, Next.js webapp for editing/preview, Supabase Edge Functions for sending/tracking.
 
 ## What Is Implemented
 
-- Local CLI entrypoint in `send.py`
-- Recipient resolution modes in `recipients.py`:
-  - manual emails (`a@b.com,c@d.com`)
-  - file mode (`file:path.txt`)
-  - newsletter mode (`newsletter`)
-  - tag mode (`tag:ACTIVE` or `tag:ACTIVE,SYNERGIZE`)
-  - name mode (`name:Scott Crawford`)
-- Template rendering in `renderer.py` using `templates/general.html` and `templates/newsletter.html`
-- Local archive output in `archive/` via `archiver.py`
-- Send execution through existing Supabase mail-sender function in `mailer.py`
+**Python CLI pipeline:**
+- `send.py` — CLI orchestrator: render → archive → send
+- `renderer.py` — template rendering with JSON content, optional AI proofreading (`--proofread` via Anthropic)
+- `recipients.py` — recipient resolution (newsletter subscribers, tags, name search, manual, file)
+- `mailer.py` — HTTP client to `mail-sender` edge function (passes `edition_slug`)
+- `archiver.py` — archives rendered HTML + `content.json` to `archives/{slug}/`
+
+**Webapp (Next.js):**
+- Split-pane edition editor with live preview at `webapp/`
+- Content stored in Supabase Storage as `newsletters/{slug}/content.json`
+- Image upload to Supabase Storage with drag-drop
+- Edition listing with send analytics (opens, clicks, unsubs)
+
+**Infrastructure:**
+- `supabase/functions/mail-sender/` — send campaigns via Gmail SMTP, per-recipient personalisation, click/open tracking injection
+- `supabase/functions/mail-tracker/` — open pixel, click redirect, unsubscribe handling
+- `templates/newsletter.html` — single source of truth (396-line v2 template); auto-copied to `webapp/templates/` via `npm run sync-templates`
+
+## Template Sync
+
+`templates/` is the canonical location. The webapp's copies in `webapp/templates/` are auto-synced via `predev` and `prebuild` scripts in `webapp/package.json`. Edit only `templates/newsletter.html` — never edit the webapp copy directly.
+
+## Archive
+
+- `archives/{slug}/` — canonical archive directory (rendered HTML + content.json + images)
+- `_archive/` — retired artifacts (legacy webapp, old form, stale build resources)
 
 ## Required Environment
 
@@ -78,7 +84,7 @@ python3 send.py \
   --template newsletter \
   --subject "April Issue" \
   --recipients tag:ACTIVE \
-  --content ./newsletter_content_example.py \
+  --content content/15-becoming-a-snacker.json \
   --dry-run
 ```
 
@@ -92,11 +98,31 @@ python3 send.py \
   --body-file ./message.txt
 ```
 
+Standalone render (no send):
+
+```bash
+python3 renderer.py content/15-becoming-a-snacker.json
+# Output: archives/15-becoming-a-snacker/rendered.html
+
+python3 renderer.py content/15-becoming-a-snacker.json --proofread
+# Same, with AI proofreading pass (requires ANTHROPIC_API_KEY)
+```
+
 List recent campaigns:
 
 ```bash
 python3 send.py --action campaigns --limit 10 --offset 0
 ```
+
+## Webapp
+
+```bash
+cd webapp
+npm install
+npm run dev    # http://localhost:3000
+```
+
+Requires `.env.local` with `TOOL_PASSWORD`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 Get campaign detail:
 

@@ -186,6 +186,7 @@ function imageFlagsForSection(
     [`${prefix}_IMAGE`]: hasImage,
     [`${prefix}_IMAGE_URL`]: hasUrl && hasImage,
     [`${prefix}_IMAGE_CAPTION`]: Boolean(section.image_caption) && hasImage,
+    [`${prefix}_IMAGE_CAPTION_PLAIN`]: Boolean(section.image_caption) && !hasUrl && hasImage,
     [`${prefix}_IMAGE_LAYOUT_LANDSCAPE`]: isLandscape && hasImage,
   };
 }
@@ -327,15 +328,18 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     GYM1_IMAGE:         Boolean(gym1.image),
     GYM1_IMAGE_URL:     Boolean(gym1.image_url) && Boolean(gym1.image),
     GYM1_IMAGE_CAPTION: Boolean(gym1.image_caption) && Boolean(gym1.image),
+    GYM1_IMAGE_CAPTION_PLAIN: Boolean(gym1.image_caption) && !Boolean(gym1.image_url) && Boolean(gym1.image),
     GYM1_CTA_LABEL:     Boolean(gym1.cta_label),
     GYM2_IMAGE:         Boolean(gym2.image),
     GYM2_IMAGE_URL:     Boolean(gym2.image_url) && Boolean(gym2.image),
     GYM2_IMAGE_CAPTION: Boolean(gym2.image_caption) && Boolean(gym2.image),
+    GYM2_IMAGE_CAPTION_PLAIN: Boolean(gym2.image_caption) && !Boolean(gym2.image_url) && Boolean(gym2.image),
     GYM2_CTA_LABEL:     Boolean(gym2.cta_label),
 
     LOCAL_IMAGE:         Boolean(local.image),
     LOCAL_IMAGE_URL:     Boolean(local.image_url) && Boolean(local.image),
     LOCAL_IMAGE_CAPTION: Boolean(local.image_caption) && Boolean(local.image),
+    LOCAL_IMAGE_CAPTION_PLAIN: Boolean(local.image_caption) && !Boolean(local.image_url) && Boolean(local.image),
     LOCAL_CTA_LABEL:     Boolean(local.cta_label),
     GYM_CALENDAR_URL:    Boolean(gym.calendar_url),
 

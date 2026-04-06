@@ -40,6 +40,7 @@ interface SendCampaignPayload {
   html_body: string;
   text_body?: string;
   recipients: Recipient[];
+  edition_slug?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +146,7 @@ async function sendCampaign(
       text_body: payload.text_body ?? null,
       recipient_count: payload.recipients.length,
       status: "sending",
+      edition_slug: payload.edition_slug ?? null,
     })
     .select("id")
     .single();

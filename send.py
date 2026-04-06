@@ -146,16 +146,19 @@ def main() -> None:
             subject=args.subject, rendered_html=rendered_html
         )
         payload_data = None
+        edition_slug = None
     else:
         if not args.content:
             raise ValueError("Newsletter template requires --content <file.json>")
         rendered_html, payload_data = render_newsletter(
             Path(args.content), first_name=preview_name
         )
+        edition_slug = Path(args.content).stem  # e.g. "15-becoming-a-snacker"
         archive_path = archive_newsletter(
             subject=args.subject,
             rendered_html=rendered_html,
             newsletter_payload=payload_data,
+            edition_slug=edition_slug,
         )
 
     print(f"Archived rendered output: {archive_path}")
@@ -170,6 +173,7 @@ def main() -> None:
         subject=args.subject,
         html_body=rendered_html,
         recipients=recipients,
+        edition_slug=edition_slug if args.template == "newsletter" else None,
     )
 
     if result.get("error"):

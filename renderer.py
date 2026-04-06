@@ -207,6 +207,23 @@ def _maybe_proofread(value: str, proofread: bool) -> str:
 # ── Image helpers ─────────────────────────────────────────────────────────────
 
 
+def _resolve_image(path_or_url: str) -> str:
+    """
+    Mirrors webapp's resolveImageSrc(). Converts a relative asset path such as
+    'assets/15-becoming-a-snacker/body-plate.png' to a full Supabase public URL.
+    Absolute URLs (starting with 'http') are returned unchanged.
+    """
+    val = (path_or_url or "").strip()
+    if not val or val.startswith("http"):
+        return val
+    parts = val.replace("\\", "/").split("/")
+    parts = [p for p in parts if p]
+    filename = parts[-1] if parts else ""
+    slug = parts[-2] if len(parts) >= 2 else ""
+    base = os.getenv("SUPABASE_URL", "").rstrip("/")
+    return f"{base}/storage/v1/object/public/newsletters/{slug}/images/{filename}"
+
+
 def _image_flags(section: dict, prefix: str) -> dict[str, bool]:
     """
     Returns the conditional flags for a food section's image.
@@ -219,6 +236,7 @@ def _image_flags(section: dict, prefix: str) -> dict[str, bool]:
         f"{prefix}_IMAGE": has_image,
         f"{prefix}_IMAGE_URL": has_url and has_image,
         f"{prefix}_IMAGE_CAPTION": bool(section.get("image_caption")) and has_image,
+        f"{prefix}_IMAGE_CAPTION_PLAIN": bool(section.get("image_caption")) and not has_url and has_image,
         f"{prefix}_IMAGE_LAYOUT_LANDSCAPE": is_landscape and has_image,
     }
 
@@ -231,6 +249,7 @@ def _gym_image_flags(story: dict, prefix: str) -> dict[str, bool]:
         f"{prefix}_IMAGE": has_image,
         f"{prefix}_IMAGE_URL": has_url and has_image,
         f"{prefix}_IMAGE_CAPTION": bool(story.get("image_caption")) and has_image,
+        f"{prefix}_IMAGE_CAPTION_PLAIN": bool(story.get("image_caption")) and not has_url and has_image,
     }
 
 
@@ -461,7 +480,7 @@ def render_newsletter(
         # Food for the Body
         "BODY_SUBTITLE": _maybe_proofread(_str(body.get("subtitle")), proofread),
         "BODY_COPY": _rich_text(body.get("copy")),
-        "BODY_IMAGE": _str(body.get("image")),
+        "BODY_IMAGE": _resolve_image(_str(body.get("image"))),
         "BODY_IMAGE_ALT": _str(body.get("image_alt")),
         "BODY_IMAGE_CAPTION": _str(body.get("image_caption")),
         "BODY_IMAGE_URL": _str(body.get("image_url")),
@@ -471,7 +490,7 @@ def render_newsletter(
         # Food for Thought
         "THOUGHT_SUBTITLE": _maybe_proofread(_str(thought.get("subtitle")), proofread),
         "THOUGHT_COPY": _rich_text(thought.get("copy")),
-        "THOUGHT_IMAGE": _str(thought.get("image")),
+        "THOUGHT_IMAGE": _resolve_image(_str(thought.get("image"))),
         "THOUGHT_IMAGE_ALT": _str(thought.get("image_alt")),
         "THOUGHT_IMAGE_CAPTION": _str(thought.get("image_caption")),
         "THOUGHT_IMAGE_URL": _str(thought.get("image_url")),
@@ -481,7 +500,7 @@ def render_newsletter(
         # Food for the Brain
         "BRAIN_SUBTITLE": _maybe_proofread(_str(brain.get("subtitle")), proofread),
         "BRAIN_COPY": _rich_text(brain.get("copy")),
-        "BRAIN_IMAGE": _str(brain.get("image")),
+        "BRAIN_IMAGE": _resolve_image(_str(brain.get("image"))),
         "BRAIN_IMAGE_ALT": _str(brain.get("image_alt")),
         "BRAIN_IMAGE_CAPTION": _str(brain.get("image_caption")),
         "BRAIN_IMAGE_URL": _str(brain.get("image_url")),
@@ -491,7 +510,7 @@ def render_newsletter(
         # Food for the Soul
         "SOUL_SUBTITLE": _maybe_proofread(_str(soul.get("subtitle")), proofread),
         "SOUL_COPY": _rich_text(soul.get("copy")),
-        "SOUL_IMAGE": _str(soul.get("image")),
+        "SOUL_IMAGE": _resolve_image(_str(soul.get("image"))),
         "SOUL_IMAGE_ALT": _str(soul.get("image_alt")),
         "SOUL_IMAGE_CAPTION": _str(soul.get("image_caption")),
         "SOUL_IMAGE_URL": _str(soul.get("image_url")),
@@ -502,7 +521,7 @@ def render_newsletter(
         "GYM_CLOSURE_DATES": _rich_text(gym.get("closure_dates")),
         "GYM1_HEADING": _str(gym1.get("heading")),
         "GYM1_COPY": _rich_text(gym1.get("copy")),
-        "GYM1_IMAGE": _str(gym1.get("image")),
+        "GYM1_IMAGE": _resolve_image(_str(gym1.get("image"))),
         "GYM1_IMAGE_ALT": _str(gym1.get("image_alt")),
         "GYM1_IMAGE_CAPTION": _str(gym1.get("image_caption")),
         "GYM1_IMAGE_URL": _str(gym1.get("image_url")),
@@ -510,7 +529,7 @@ def render_newsletter(
         "GYM1_CTA_URL": _str(gym1.get("cta_url")),
         "GYM2_HEADING": _str(gym2.get("heading")),
         "GYM2_COPY": _rich_text(gym2.get("copy")),
-        "GYM2_IMAGE": _str(gym2.get("image")),
+        "GYM2_IMAGE": _resolve_image(_str(gym2.get("image"))),
         "GYM2_IMAGE_ALT": _str(gym2.get("image_alt")),
         "GYM2_IMAGE_CAPTION": _str(gym2.get("image_caption")),
         "GYM2_IMAGE_URL": _str(gym2.get("image_url")),
@@ -519,10 +538,14 @@ def render_newsletter(
         # Local news
         "LOCAL_SUBTITLE": _str(local.get("subtitle")),
         "LOCAL_COPY": _rich_text(local.get("copy")),
-        "LOCAL_IMAGE": _str(local.get("image")),
+        "LOCAL_IMAGE": _resolve_image(_str(local.get("image"))),
         "LOCAL_IMAGE_ALT": _str(local.get("image_alt")),
         "LOCAL_IMAGE_CAPTION": _str(local.get("image_caption")),
         "LOCAL_IMAGE_URL": _str(local.get("image_url")),
+        "LOCAL_CTA_LABEL": _str(local.get("cta_label")),
+        "LOCAL_CTA_URL": _str(local.get("cta_url")),
+        # Gym calendar
+        "GYM_CALENDAR_URL": _str(gym.get("calendar_url")),
         # Footer
         "CURRENT_YEAR": str(datetime.now().year),
         "UNSUBSCRIBE_URL": "{{UNSUBSCRIBE_URL}}",
@@ -543,6 +566,7 @@ def render_newsletter(
         "GYM1_IMAGE_CAPTION": bool(gym1.get("image_caption"))
         and bool(gym1.get("image")),
         "GYM1_CTA_LABEL": bool(gym1.get("cta_label")),
+        "GYM_CALENDAR_URL": bool(gym.get("calendar_url")),
         "GYM2_IMAGE": bool(gym2.get("image")),
         "GYM2_IMAGE_URL": bool(gym2.get("image_url")) and bool(gym2.get("image")),
         "GYM2_IMAGE_CAPTION": bool(gym2.get("image_caption"))
@@ -552,6 +576,14 @@ def render_newsletter(
         "LOCAL_IMAGE_URL": bool(local.get("image_url")) and bool(local.get("image")),
         "LOCAL_IMAGE_CAPTION": bool(local.get("image_caption"))
         and bool(local.get("image")),
+        "LOCAL_CTA_LABEL": bool(local.get("cta_label")),
+        "GYM1_IMAGE_CAPTION_PLAIN": bool(gym1.get("image_caption")) and not bool(gym1.get("image_url")) and bool(gym1.get("image")),
+        "GYM2_IMAGE_CAPTION_PLAIN": bool(gym2.get("image_caption")) and not bool(gym2.get("image_url")) and bool(gym2.get("image")),
+        "LOCAL_IMAGE_CAPTION_PLAIN": bool(local.get("image_caption")) and not bool(local.get("image_url")) and bool(local.get("image")),
+        "BODY_CTA_LABEL": bool(body.get("cta_label")),
+        "THOUGHT_CTA_LABEL": bool(thought.get("cta_label")),
+        "BRAIN_CTA_LABEL": bool(brain.get("cta_label")),
+        "SOUL_CTA_LABEL": bool(soul.get("cta_label")),
         "BODY_SHARE_URL": bool(body.get("share_url")),
         "THOUGHT_SHARE_URL": bool(thought.get("share_url")),
         "BRAIN_SHARE_URL": bool(brain.get("share_url")),

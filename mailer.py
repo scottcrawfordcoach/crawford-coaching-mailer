@@ -43,6 +43,7 @@ def send_campaign(
     subject: str,
     html_body: str,
     recipients: list[Recipient],
+    edition_slug: str | None = None,
 ) -> dict:
     return _mail_sender_request(
         settings=settings,
@@ -52,6 +53,7 @@ def send_campaign(
             "subject": subject,
             "html_body": html_body,
             "recipients": [asdict(r) for r in recipients],
+            "edition_slug": edition_slug,
         },
     )
 

@@ -1,201 +1,165 @@
-# Crawford Coaching Mailer — Handoff Note
+# Crawford Coaching Mailer — Handoff
 
-**Session date:** current  
-**Reason for handoff:** Switching from Zed (Flatpak) to VS Code for better terminal access  
-**Next session should start at:** Git push → Vercel deploy → smoke test
+**Last updated:** April 6, 2026
+**Context:** V2 alignment update complete. All template, renderer, pipeline, and archive changes implemented and verified.
 
 ---
 
-## Current state
+## What this project is
 
-All code is written and TypeScript-clean. The webapp is **not yet pushed to git**.
-The next action is a `git add / commit / push` from a real terminal (VS Code integrated
-terminal works fine), then verify the Vercel deploy.
+A newsletter and email system for Crawford Coaching. Two main parts:
+
+1. **Python CLI pipeline** — renders newsletter HTML from JSON content, sends via Supabase Edge Function + Gmail SMTP, archives output locally
+2. **Next.js webapp** — browser-based edition editor with live preview, hosted on Vercel
+
+Content lives in Supabase Storage (`newsletters/{slug}/content.json`). Sending happens locally via `send.py`. Tracking (opens, clicks, unsubscribes) is handled by `mail-tracker` edge function.
 
 ---
 
 ## Project location
 
 ```
-/mnt/e/crawford-coaching-mailer/   (WSL path — adjust mount letter if needed)
+E:\crawford-coaching-mailer\
 ```
-
-Node modules are installed (`webapp/node_modules/` exists).  
-`.env.local` still needs to be created for local dev (see below).  
-Vercel environment variables are already set in the Vercel dashboard.  
-Migration `003_edition_slug.sql` has already been run in Supabase.
 
 ---
 
-## What is complete
+## Architecture at a glance
 
-### Python pipeline (fully working, no changes needed)
+```
+content.json  →  renderer.py  →  send.py  →  mailer.py  →  mail-sender (Edge Fn)  →  Gmail SMTP
+  (Storage)       (templates/)     (CLI)       (HTTP)         (personalise+track)      (delivery)
+                                     ↓
+                               archives/{slug}/
+                               rendered.html + content.json
 
-| File | Status |
+Webapp:  editions editor  →  /api/preview  →  templates.ts  →  iframe preview
+```
+
+---
+
+## Key files (what does what)
+
+### Python pipeline
+
+| File | Role |
 |---|---|
-| `renderer.py` | Rewritten — JSON input, Anthropic proofreading, archive output |
-| `templates/newsletter.html` | Updated — all placeholders, EDITION_LABEL, per-story gym section, image captions/URLs |
-| `newsletter-form.html` | Standalone browser form in project root — exports JSON to clipboard |
-| `send.py` | Updated — render_newsletter call signature fixed |
-| `content/15-becoming-a-snacker.json` | Example edition content, Issue 15 |
-| `requirements.txt` | Includes anthropic, python-dotenv |
-| `.env` | Contains ANTHROPIC_API_KEY — loaded automatically by renderer.py |
+| `renderer.py` | Loads content JSON, fills template tokens, resolves conditionals, optional `--proofread` via Anthropic |
+| `send.py` | CLI orchestrator: render → archive → send. Derives `edition_slug` from content filename |
+| `mailer.py` | HTTP client to `mail-sender` edge function. Sends `edition_slug` in payload |
+| `archiver.py` | Writes `archives/{slug}/rendered.html` + `content.json`. General emails go to `archives/sent/` |
+| `recipients.py` | Resolves recipients: `newsletter`, `tag:X`, `name:X`, manual emails, `file:path` |
+| `config.py` | Loads `.env` settings |
 
-Test any time:
+### Templates
+
+| File | Role |
+|---|---|
+| `templates/newsletter.html` | **Single source of truth** — 396-line v2 template |
+| `templates/general.html` | General/plain email template |
+| `webapp/templates/*` | Auto-copied from `templates/` by `npm run sync-templates` (wired into `predev`/`prebuild`) |
+
+**Rule:** Only edit `templates/newsletter.html`. The webapp copies are auto-synced.
+
+### Webapp (Next.js)
+
+| File | Role |
+|---|---|
+| `webapp/lib/templates.ts` | TypeScript renderer port — `renderNewsletterPreview()`. Has `_CAPTION_PLAIN` flags matching Python |
+| `webapp/app/editions/[slug]/page.tsx` | Split-pane editor: form left, live preview right |
+| `webapp/app/editions/page.tsx` | Edition list with analytics |
+| `webapp/components/ImageUpload.tsx` | Drag-drop image upload to Supabase Storage |
+| `webapp/components/PreviewPanel.tsx` | Iframe preview of rendered HTML |
+| `webapp/package.json` | Has `sync-templates`, `predev`, `prebuild` scripts |
+
+### Edge functions
+
+| File | Role |
+|---|---|
+| `supabase/functions/mail-sender/index.ts` | Sends campaign: personalises per-recipient, injects tracking, sends via SMTP, persists `edition_slug` |
+| `supabase/functions/mail-tracker/index.ts` | Handles open pixels, click redirects, unsubscribe |
+
+---
+
+## V2 changes (completed this session)
+
+All changes from `v2-alignment-instructions.md` have been implemented:
+
+1. **Template replaced** — both locations now have the 396-line v2 template matching `issue-15-reference.html`
+2. **`renderer.py`** — added `_CAPTION_PLAIN` flags to `_image_flags()` and `_gym_image_flags()`; added `BODY/THOUGHT/BRAIN/SOUL_CTA_LABEL` flags; added `GYM1/GYM2/LOCAL_IMAGE_CAPTION_PLAIN` flags
+3. **`templates.ts`** — matching `_CAPTION_PLAIN` flags added to `imageFlagsForSection()` and gym/local sections
+4. **`send.py`** — derives `edition_slug` from content filename, passes to archiver and mailer
+5. **`mailer.py`** — `send_campaign()` accepts and sends `edition_slug`
+6. **`mail-sender/index.ts`** — `SendCampaignPayload` includes `edition_slug`; persisted in campaign insert
+7. **`archiver.py`** — writes `content.json` (not `content.py`); uses `archives/` as canonical path; accepts `edition_slug`
+8. **Template sync** — `webapp/package.json` has auto-copy scripts
+9. **Stale files cleaned** — `newsletter-form.html` and `_build-resources/` moved to `_archive/`; legacy `content.py` deleted
+
+### Verification
+
+Renderer output was diffed against `test-render-issue15.html`. Only difference: `{{UNSUBSCRIBE_URL}}` left as token (correct — edge function replaces per-recipient) vs `#` in test render. Structural parity confirmed.
+
+---
+
+## What still needs doing
+
+### Deploy edge function
 ```bash
+supabase functions deploy mail-sender --no-verify-jwt
+```
+The local code has the `edition_slug` changes. This must be deployed before the next newsletter send.
+
+### Old `archive/` directory
+`archive/newsletters/` contains one pre-V2 legacy send. Can be moved to `_archive/` or deleted.
+
+### Content images
+Before any newsletter send, verify every image in the content JSON exists at its resolved Supabase Storage URL. Relative paths like `assets/{slug}/{filename}` are auto-resolved to Supabase public URLs by both renderers, but only work if images have been uploaded.
+
+---
+
+## Quick reference commands
+
+```bash
+# Standalone render (no send)
 python renderer.py content/15-becoming-a-snacker.json
-# output: archives/15-becoming-a-snacker/rendered.html
+
+# Render with proofreading
+python renderer.py content/15-becoming-a-snacker.json --proofread
+
+# Dry-run send
+python send.py --template newsletter --subject "Subject" --recipients newsletter --content content/15-becoming-a-snacker.json --dry-run
+
+# List campaigns
+python send.py --action campaigns --limit 10
+
+# Webapp dev
+cd webapp && npm run dev
+
+# Sync templates manually (also runs automatically on dev/build)
+cd webapp && npm run sync-templates
 ```
 
 ---
 
-### webapp/ — fully built, TypeScript clean
+## Environment variables
 
-#### Config / shell (no changes needed)
-- `webapp/package.json`
-- `webapp/tsconfig.json`
-- `webapp/tailwind.config.ts` — custom color tokens: ink, slate, slate-mid, fog, mist, pale, white, brand-blue
-- `webapp/next.config.mjs` — `config.resolve.symlinks = false` (keep this)
-- `webapp/postcss.config.js`
-- `webapp/next-env.d.ts`
-- `webapp/vercel.json` — buildCommand, outputDirectory, framework: nextjs
-
-#### App shell
-- `webapp/app/globals.css` — Tailwind base + `.field`, `.label`, `.btn-primary`, `.btn-ghost`, `.chip`
-- `webapp/app/layout.tsx` — HTML shell, Google Fonts (Cormorant Garamond, Libre Baskerville, Jost)
-- `webapp/app/page.tsx` — root redirect: unauthenticated → /login, authenticated → /editions
-- `webapp/app/login/page.tsx` — passcode gate, POSTs to /api/auth
-
-#### Auth
-- `webapp/lib/auth.ts` — `checkSession()` / `setSessionCookie()` / `clearSessionCookie()`
-- `webapp/app/api/auth/route.ts` — POST (login) / DELETE (logout)
-- Env var: `TOOL_PASSWORD`
-
-#### Supabase client
-- `webapp/lib/supabase.ts` — `getSupabaseClient()` + `newsletterPublicUrl()`
-- Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-
-#### Template rendering
-- `webapp/lib/templates.ts` — TypeScript port of renderer.py
-  - Types: `NewsletterContent`, `FoodSection`, `GymSection`, `LocalSection`, `GymStory`
-  - Exports: `renderNewsletterPreview(data: Partial<NewsletterContent>): string`
-  - Reads from `webapp/templates/newsletter.html`
-- `webapp/templates/newsletter.html` — copy of root `templates/newsletter.html`
-- `webapp/templates/general.html` — copy of root `templates/general.html`
-
-#### API routes
-
-| Route | Method | Purpose |
+| Variable | Used by | Notes |
 |---|---|---|
-| `/api/auth` | POST | Login — sets 7-day session cookie |
-| `/api/auth` | DELETE | Logout — clears cookie |
-| `/api/preview` | POST | Body: `{ vars: Partial<NewsletterContent> }` → returns raw HTML |
-| `/api/assets` | POST | FormData `{ file, slug }` → uploads to `newsletters/{slug}/images/` → returns `{ url, filename }` |
-| `/api/editions` | GET | List edition folders from Supabase storage |
-| `/api/editions` | POST | Body: `{ slug }` → create folder + empty content.json |
-| `/api/editions/[slug]` | GET | Returns `{ content: NewsletterContent \| null }` |
-| `/api/editions/[slug]` | PUT | Body: NewsletterContent → saves content.json, upsert |
+| `SUPABASE_URL` | Python + webapp | All Supabase operations |
+| `SUPABASE_SERVICE_ROLE_KEY` | Python + webapp | Storage + DB access |
+| `MAIL_SENDER_BEARER_TOKEN` | `mailer.py` | Auth for edge function |
+| `ANTHROPIC_API_KEY` | `renderer.py` | `--proofread` only |
+| `TOOL_PASSWORD` | Webapp | Login passcode |
 
-#### Components
-- `webapp/components/Nav.tsx` — top bar: "Crawford Coaching" wordmark, Editions link, Sign Out
-- `webapp/components/PreviewPanel.tsx` — iframe that writes HTML via `doc.write()`
-- `webapp/components/NewEditionModal.tsx` — inline expandable form: edition number + title → computes slug → POST /api/editions → router.push
-- `webapp/components/ImageUpload.tsx` — drag-and-drop or click-to-browse; POSTs to /api/assets; shows filename badge when URL is set
-
-#### Pages
-- `webapp/app/editions/page.tsx` — **Server Component**
-  - Session guard → redirect /login
-  - Fetches storage folders, most recent campaign + event counts (opens/clicks/unsubs), all sent slugs
-  - Renders: analytics card, Editions heading + New Edition button, edition list (Draft / Sent ✓)
-- `webapp/app/editions/[slug]/page.tsx` — **Client Component**
-  - `h-screen` split: 520px scrollable form left | flex-1 preview right
-  - All 8 form sections: Edition Details, Introduction, Food ×4, Gym News (optional, up to 2 stories), Local News (optional)
-  - `ImageUpload` on every image field — auto-fills filename + URL on upload
-  - Sticky action bar: Save → PUT content.json · Preview → POST /api/preview → iframe · Export JSON → clipboard
-  - On mount: GET content.json, deep-merge with empty defaults
+Python reads from `.env`. Webapp reads from `.env.local` (local) or Vercel env vars (production).
 
 ---
 
-## Immediate next actions
+## Design decisions to preserve
 
-### 1. Push to git (from VS Code terminal)
-
-```bash
-git add webapp/app/editions/page.tsx \
-        "webapp/app/editions/[slug]/page.tsx" \
-        webapp/components/NewEditionModal.tsx \
-        webapp/components/ImageUpload.tsx \
-        webapp/vercel.json
-
-git commit -m "feat: add editions landing page, editor, and vercel config (steps 3-5)"
-
-git push
-```
-
-### 2. Verify Vercel settings
-
-In the Vercel project dashboard:
-- **Root Directory:** `webapp`
-- **Framework Preset:** Next.js
-- **Environment Variables** (all three must be present):
-  - `TOOL_PASSWORD`
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-
-### 3. Smoke test after deploy
-
-1. Open the deployed URL → should redirect to `/login`
-2. Enter password → should land on `/editions`
-3. If the `sent_campaigns` table has rows, the analytics card appears at top
-4. Click **+ New Edition** → enter a number + title → Create → should navigate to `/editions/{slug}`
-5. Fill in Edition Details + Introduction → click **Preview** → right panel should render the email
-6. Click **Save** → should show "Saved ✓" briefly
-7. Upload an image in a food section → filename badge should appear; URL field should auto-populate
-
-### 4. Local dev (optional, for faster iteration)
-
-```bash
-cd webapp
-
-# Create .env.local if it doesn't exist yet
-cat > .env.local << 'EOF'
-TOOL_PASSWORD=your-passcode-here
-SUPABASE_URL=https://yxndmpwqvdatkujcukdv.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
-EOF
-
-npm run build   # verify — should produce no errors
-npm run dev     # http://localhost:3000
-```
-
----
-
-## Supabase storage requirements
-
-- `newsletters` bucket must exist and allow service-role reads + writes
-- `mail-assets` bucket exists with fixed assets (header, logo, badges)
-- `migrations/003_edition_slug.sql` — **already run** ✓
-
----
-
-## Key design decisions
-
-- **Slug format:** `{number}-{slugified-title}` e.g. `15-becoming-a-snacker`
-- **Content format:** JSON matching `NewsletterContent` in `webapp/lib/templates.ts`
-- **Preview API:** expects `{ vars: Partial<NewsletterContent> }`, returns raw `text/html` (not JSON)
-- **Template copies:** `templates/newsletter.html` (Python) and `webapp/templates/newsletter.html` (webapp) must be kept in sync when the template changes
-- **Python renderer stays local** — used for final send only, after all image URLs are Supabase public URLs. The webapp is for editing and preview only.
-- **No Supabase Auth** — shared passcode via `TOOL_PASSWORD`. 7-day session cookie. Fine for a private single-user tool.
-- **Analytics join:** `sent_campaigns.edition_slug` links DB campaign rows to storage folders. Populate this column when the send flow is built.
-- **`config.resolve.symlinks = false`** in `next.config.mjs` — keep this, required for the `[slug]` dynamic route to resolve correctly.
-
----
-
-## What is NOT yet built
-
-- **Send flow** — the workflow for doing a final render via `renderer.py` and dispatching the newsletter via the Python mailer. This is intentionally kept as a local Python step for now.
-- **Edition slug written to `sent_campaigns`** — when a send is triggered, `edition_slug` should be saved alongside the campaign row so the landing page analytics card links back to the correct edition.
-
----
-
-*End of handoff. Next step: git push and Vercel smoke test.*
+- **`config.resolve.symlinks = false`** in `next.config.mjs` — required for `[slug]` dynamic routes
+- **`{{UNSUBSCRIBE_URL}}`** left as literal token by renderer — edge function replaces per-recipient at send time
+- **Slug format:** `{number}-{kebab-title}` e.g. `15-becoming-a-snacker`
+- **No Supabase Auth** — shared passcode via `TOOL_PASSWORD`, 7-day cookie
+- **Python renderer is the send-time renderer** — webapp is for editing/preview only
+- **Migration 003** (`edition_slug` column on `sent_campaigns`) — already run in Supabase
