@@ -284,13 +284,48 @@ export default function EditionPage() {
 
     setNSending(true);
     setNSendResult(null);
+
+    // ── Generate share pages if any are missing ──────────────────────────
+    let varsToSend = form;
+    const sections = ["food_body", "food_thought", "food_brain", "food_soul"] as const;
+    const needsSharePages = sections.some(
+      (k) => form[k] && (form[k] as Record<string, unknown>).copy && !(form[k] as Record<string, unknown>).share_url,
+    );
+
+    if (needsSharePages) {
+      try {
+        setNSendResult("Generating share pages…");
+        const spRes = await fetch("/api/newsletter/share-pages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug, content: form }),
+        });
+        const spData = await spRes.json();
+        if (spRes.ok && spData.share_urls) {
+          // Merge share URLs into form data for the send
+          const merged = { ...form };
+          for (const [sectionKey, url] of Object.entries(spData.share_urls as Record<string, string>)) {
+            if (merged[sectionKey] && typeof merged[sectionKey] === "object") {
+              merged[sectionKey] = { ...(merged[sectionKey] as Record<string, unknown>), share_url: url };
+            }
+          }
+          varsToSend = merged;
+        }
+        // If share page generation fails, proceed without share links
+      } catch {
+        // Non-fatal — send without share links
+      }
+    }
+
+    // ── Send the newsletter ─────────────────────────────────────────────
+    setNSendResult(null);
     try {
       const res = await fetch("/api/newsletter/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subject: form.subject.trim(),
-          vars: form,
+          vars: varsToSend,
           edition_slug: slug,
           recipients: recipients.map((c) => ({
             email: c.email,
