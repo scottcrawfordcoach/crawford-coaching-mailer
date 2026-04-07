@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     contactTagCounts.set(id, (contactTagCounts.get(id) ?? 0) + 1);
   }
 
-  const matchingIds = [...contactTagCounts.entries()]
+  const matchingIds = Array.from(contactTagCounts.entries())
     .filter(([, count]) => count >= tags.length)
     .map(([id]) => id);
 

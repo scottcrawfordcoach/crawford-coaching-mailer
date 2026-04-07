@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Deduplicate
-  const tags = [...new Set((data ?? []).map((r) => r.tag as string))];
+  const tags = Array.from(new Set((data ?? []).map((r) => r.tag as string)));
 
   return NextResponse.json({ tags });
 }
