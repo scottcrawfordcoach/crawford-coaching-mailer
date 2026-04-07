@@ -63,7 +63,6 @@ export default function EmailPage() {
   // Layout
   const [leftWidth, setLeftWidth] = useState(520);
   const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Search debounce timer
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -226,28 +225,22 @@ export default function EmailPage() {
 
   // ── Drag to resize ────────────────────────────────────────────────────
 
-  function onMouseDown() {
+  function onMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = leftWidth;
     setIsDragging(true);
-  }
-
-  useEffect(() => {
-    if (!isDragging) return;
-    function onMouseMove(e: MouseEvent) {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = Math.min(Math.max(e.clientX - rect.left, 280), rect.width - 280);
-      setLeftWidth(x);
+    function onMouseMove(ev: MouseEvent) {
+      setLeftWidth(Math.min(Math.max(startWidth + ev.clientX - startX, 280), 800));
     }
     function onMouseUp() {
       setIsDragging(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
     }
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, [isDragging]);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
 
   // ── Validation ────────────────────────────────────────────────────────
 
@@ -264,9 +257,8 @@ export default function EmailPage() {
       <Nav />
 
       <div
-        ref={containerRef}
         className="flex flex-1 overflow-hidden"
-        style={{ cursor: isDragging ? "col-resize" : undefined }}
+        style={{ cursor: isDragging ? "col-resize" : undefined, userSelect: isDragging ? "none" : undefined }}
       >
         {/* ── LEFT: Form ─────────────────────────────────────────── */}
         <div
@@ -489,7 +481,7 @@ export default function EmailPage() {
         />
 
         {/* ── RIGHT: Preview ─────────────────────────────────── */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0" style={{ pointerEvents: isDragging ? "none" : undefined }}>
           <PreviewPanel html={previewHtml} loading={previewing} />
         </div>
       </div>

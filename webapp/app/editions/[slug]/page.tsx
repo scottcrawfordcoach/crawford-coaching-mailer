@@ -719,7 +719,7 @@ export default function EditionPage() {
         {/* ---------------------------------------------------------------- */}
         {/* RIGHT: preview panel                                              */}
         {/* ---------------------------------------------------------------- */}
-        <div className="flex-1 overflow-hidden p-4">
+        <div className="flex-1 overflow-hidden p-4" style={{ pointerEvents: isDragging ? "none" : undefined }}>
           <PreviewPanel key={previewKey} html={previewHtml} loading={previewing} />
         </div>
       </div>
