@@ -14,6 +14,17 @@ import type {
 } from "@/lib/templates";
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface Contact {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+// ---------------------------------------------------------------------------
 // Empty defaults
 // ---------------------------------------------------------------------------
 
@@ -93,6 +104,18 @@ export default function EditionPage() {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartX = useRef<number>(0);
   const dragStartWidth = useRef<number>(520);
+
+  // Send panel state
+  const [sendMode, setSendMode] = useState<"individual" | "all">("all");
+  const [nSearchQuery, setNSearchQuery] = useState("");
+  const [nSearchResults, setNSearchResults] = useState<Contact[]>([]);
+  const [nSelectedContacts, setNSelectedContacts] = useState<Contact[]>([]);
+  const [nSearching, setNSearching] = useState(false);
+  const [nSubscribers, setNSubscribers] = useState<Contact[]>([]);
+  const [nSubscribersLoaded, setNSubscribersLoaded] = useState(false);
+  const [nSending, setNSending] = useState(false);
+  const [nSendResult, setNSendResult] = useState<string | null>(null);
+  const nSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -208,6 +231,87 @@ export default function EditionPage() {
 
   function handleExportJson() {
     navigator.clipboard.writeText(JSON.stringify(form, null, 2));
+  }
+
+  // ── Send panel — contact search (debounced) ──────────────────────────────
+
+  useEffect(() => {
+    if (sendMode !== "individual" || nSearchQuery.length < 2) {
+      setNSearchResults([]);
+      return;
+    }
+    if (nSearchTimer.current) clearTimeout(nSearchTimer.current);
+    nSearchTimer.current = setTimeout(async () => {
+      setNSearching(true);
+      try {
+        const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(nSearchQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setNSearchResults(data.contacts ?? []);
+        }
+      } finally {
+        setNSearching(false);
+      }
+    }, 300);
+  }, [nSearchQuery, sendMode]);
+
+  // ── Send panel — load subscriber list ────────────────────────────────────
+
+  useEffect(() => {
+    if (sendMode !== "all" || nSubscribersLoaded) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/newsletter/subscribers");
+        if (res.ok) {
+          const data = await res.json();
+          setNSubscribers(data.contacts ?? []);
+          setNSubscribersLoaded(true);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [sendMode, nSubscribersLoaded]);
+
+  // ── Send panel — send handler ─────────────────────────────────────────────
+
+  async function handleNewsletterSend() {
+    const recipients = sendMode === "individual" ? nSelectedContacts : nSubscribers;
+    if (recipients.length === 0 || !form.subject?.trim()) return;
+
+    const confirmed = window.confirm(
+      `Send "${form.subject}" to ${recipients.length} recipient${recipients.length !== 1 ? "s" : ""}?`,
+    );
+    if (!confirmed) return;
+
+    setNSending(true);
+    setNSendResult(null);
+    try {
+      const res = await fetch("/api/newsletter/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: form.subject.trim(),
+          vars: form,
+          edition_slug: slug,
+          recipients: recipients.map((c) => ({
+            email: c.email,
+            first_name: c.first_name,
+            contact_id: c.id,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNSendResult(
+          `Sent to ${data.recipient_count} recipient${data.recipient_count !== 1 ? "s" : ""}. Campaign ID: ${data.campaign_id}`,
+        );
+      } else {
+        setNSendResult(`Error: ${data.error ?? "Send failed"}`);
+      }
+    } catch (err) {
+      setNSendResult(`Error: ${err instanceof Error ? err.message : "Network error"}`);
+    } finally {
+      setNSending(false);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -442,6 +546,148 @@ export default function EditionPage() {
         {/* ---------------------------------------------------------------- */}
         <div style={{ width: leftWidth, flexShrink: 0 }} className="overflow-y-auto border-fog flex flex-col">
           <div className="flex-1 px-6 py-6 space-y-6">
+
+            {/* ============================================================ */}
+            {/* SEND PANEL                                                    */}
+            {/* ============================================================ */}
+            <div className="bg-slate border border-brand-blue/40 rounded-sm p-5">
+              <div className="border-b border-fog pb-3 mb-4">
+                <p className="text-xs font-sans tracking-widest uppercase text-brand-blue">
+                  Send
+                </p>
+                <p className="font-serif text-white text-lg">Send Newsletter</p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Mode toggle */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSendMode("individual")}
+                    className={sendMode === "individual" ? "btn-primary" : "btn-ghost"}
+                    style={{ fontSize: 11 }}
+                  >
+                    Individual
+                  </button>
+                  <button
+                    onClick={() => setSendMode("all")}
+                    className={sendMode === "all" ? "btn-primary" : "btn-ghost"}
+                    style={{ fontSize: 11 }}
+                  >
+                    All Subscribers
+                  </button>
+                </div>
+
+                {/* Individual mode */}
+                {sendMode === "individual" && (
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <input
+                        className="field pr-8"
+                        placeholder="Search by name or email…"
+                        value={nSearchQuery}
+                        onChange={(e) => setNSearchQuery(e.target.value)}
+                      />
+                      {nSearching && (
+                        <span className="absolute right-2 top-2 text-mist text-xs">…</span>
+                      )}
+                      {nSearchResults.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-slate border border-fog rounded shadow-lg max-h-48 overflow-y-auto">
+                          {nSearchResults.map((c) => (
+                            <button
+                              key={c.id}
+                              className="w-full text-left px-3 py-2 text-sm font-sans text-pale hover:bg-fog/20"
+                              onClick={() => {
+                                if (!nSelectedContacts.find((x) => x.id === c.id)) {
+                                  setNSelectedContacts((prev) => [...prev, c]);
+                                }
+                                setNSearchQuery("");
+                                setNSearchResults([]);
+                              }}
+                            >
+                              {c.first_name} {c.last_name}{" "}
+                              <span className="text-mist text-xs">{c.email}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {nSelectedContacts.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {nSelectedContacts.map((c) => (
+                          <span
+                            key={c.id}
+                            className="flex items-center gap-1 bg-brand-blue/20 border border-brand-blue/40 text-pale text-xs font-sans px-2 py-1 rounded"
+                          >
+                            {c.first_name} {c.last_name}
+                            <button
+                              onClick={() =>
+                                setNSelectedContacts((prev) => prev.filter((x) => x.id !== c.id))
+                              }
+                              className="text-mist hover:text-white ml-1"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* All subscribers mode */}
+                {sendMode === "all" && (
+                  <p className="text-sm font-sans text-pale">
+                    {nSubscribersLoaded
+                      ? `${nSubscribers.length} active newsletter subscriber${nSubscribers.length !== 1 ? "s" : ""}`
+                      : "Loading subscribers…"}
+                  </p>
+                )}
+
+                {/* Subject preview */}
+                <p className="text-xs font-sans text-mist">
+                  Subject:{" "}
+                  <span className="text-pale">
+                    {form.subject?.trim() || <em className="text-fog">not set — fill in Edition Details</em>}
+                  </span>
+                </p>
+
+                {/* Send button */}
+                {(() => {
+                  const recipients = sendMode === "individual" ? nSelectedContacts : nSubscribers;
+                  const canSend = recipients.length > 0 && !!form.subject?.trim() && !nSending;
+                  return (
+                    <button
+                      onClick={handleNewsletterSend}
+                      disabled={!canSend}
+                      className="btn-primary disabled:opacity-40"
+                    >
+                      {nSending
+                        ? "Sending…"
+                        : `Send to ${
+                            sendMode === "all"
+                              ? nSubscribersLoaded
+                                ? `${nSubscribers.length} subscriber${nSubscribers.length !== 1 ? "s" : ""}`
+                                : "subscribers"
+                              : `${nSelectedContacts.length} contact${nSelectedContacts.length !== 1 ? "s" : ""}`
+                          }`}
+                    </button>
+                  );
+                })()}
+
+                {/* Result */}
+                {nSendResult && (
+                  <div
+                    className={`text-sm font-sans px-4 py-3 rounded ${
+                      nSendResult.startsWith("Error")
+                        ? "bg-red-900/30 text-red-300 border border-red-500/40"
+                        : "bg-green-900/30 text-green-300 border border-green-500/40"
+                    }`}
+                  >
+                    {nSendResult}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* ============================================================ */}
             {/* SECTION 1: Edition Details                                    */}

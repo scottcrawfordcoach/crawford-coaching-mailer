@@ -221,7 +221,7 @@ const EMPTY_LOCAL: LocalSection = {
 // and UNSUBSCRIBE_URL set to "#" for safe preview display.
 // ---------------------------------------------------------------------------
 
-export function renderNewsletterPreview(data: Partial<NewsletterContent>): string {
+export function renderNewsletterPreview(data: Partial<NewsletterContent>, options?: { forSend?: boolean }): string {
   let html = loadTemplate("newsletter");
 
   const body    = { ...EMPTY_FOOD,  ...(data.food_body    ?? {}) };
@@ -312,8 +312,8 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
     LOCAL_CTA_URL:       str(local.cta_url),
     // Footer / runtime
     CURRENT_YEAR:    new Date().getFullYear().toString(),
-    FIRST_NAME:      "there",
-    UNSUBSCRIBE_URL: "#",
+    FIRST_NAME:      options?.forSend ? "{{FIRST_NAME}}" : "there",
+    UNSUBSCRIBE_URL: options?.forSend ? "{{UNSUBSCRIBE_URL}}" : "#",
   };
 
   for (const [tag, value] of Object.entries(replacements)) {
