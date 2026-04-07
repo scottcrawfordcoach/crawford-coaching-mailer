@@ -1,28 +1,26 @@
 /**
  * mail-sender/index.ts
  * --------------------
- * Crawford Coaching â€” Mail Sender Edge Function
+ * Crawford Coaching — Mail Sender Edge Function (Resend API)
  *
  * Auth: Bearer token in Authorization header.
  *       Token must match MAIL_SENDER_BEARER_TOKEN secret.
  *
  * Actions (POST):
- *   send_campaign       â€” render, personalise, inject tracking, send via SMTP, archive
- *   get_campaigns       â€” paginated campaign list with aggregate analytics
- *   get_campaign_detail â€” full campaign detail with recipients and events
+ *   send_campaign       — personalise per recipient, send via Resend, record in DB
+ *   get_campaigns       — paginated campaign list with aggregate analytics
+ *   get_campaign_detail — full campaign detail with recipients and events
  *
  * Deploy:
  *   supabase functions deploy mail-sender --no-verify-jwt
  *
  * Secrets required:
  *   supabase secrets set MAIL_SENDER_BEARER_TOKEN=<value>
- *   supabase secrets set GMAIL_BUSINESS=scott@crawford-coaching.ca
- *   supabase secrets set GMAIL_APP_PASSWORD_BUSINESS=<app_password>
+ *   supabase secrets set RESEND_API_KEY=<resend_api_key>
  *   supabase secrets set MAIL_TRACKER_BASE_URL=https://<project>.supabase.co/functions/v1/mail-tracker
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import nodemailer from "npm:nodemailer@6";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,23 +53,22 @@ function checkAuth(req: Request): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// SMTP transporter
+// HTML helpers
 // ---------------------------------------------------------------------------
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: Deno.env.get("GMAIL_BUSINESS"),
-      pass: Deno.env.get("GMAIL_APP_PASSWORD_BUSINESS"),
-    },
-  });
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ---------------------------------------------------------------------------
-// Per-recipient HTML personalisation + tracking injection
+// Per-recipient HTML personalisation
+//
+// Resend handles open tracking and click tracking natively.
+// We only replace per-recipient placeholders: name, unsubscribe URL, year.
 // ---------------------------------------------------------------------------
 
 function personaliseHtml(
@@ -83,37 +80,63 @@ function personaliseHtml(
   const firstName = recipient.first_name ?? "there";
   const year = new Date().getFullYear().toString();
   const unsubscribeUrl = `${trackerBase}?action=unsubscribe&r=${encodeURIComponent(recipientId)}`;
-  const openPixelUrl = `${trackerBase}?action=open&r=${encodeURIComponent(recipientId)}`;
 
   let out = html
     .replace(/\{\{FIRST_NAME\}\}/g, escapeHtml(firstName))
     .replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubscribeUrl)
     .replace(/\{\{CURRENT_YEAR\}\}/g, year);
 
-  // Rewrite all href links through click tracker (skip mailto: and unsubscribe links)
-  out = out.replace(/href="(https?:\/\/[^"]+)"/g, (_match, url: string) => {
-    if (url.startsWith(trackerBase)) return `href="${url}"`;
-    const clickUrl = `${trackerBase}?action=click&r=${encodeURIComponent(recipientId)}&url=${encodeURIComponent(url)}`;
-    return `href="${clickUrl}"`;
-  });
-
-  // Inject open pixel â€” replace placeholder comment or insert before </body>
-  const pixelTag = `<img src="${openPixelUrl}" width="1" height="1" alt="" style="display:none;">`;
-  if (out.includes("<!-- {{OPEN_PIXEL}} -->")) {
-    out = out.replace("<!-- {{OPEN_PIXEL}} -->", pixelTag);
-  } else {
-    out = out.replace("</body>", `${pixelTag}\n</body>`);
-  }
+  // Remove open pixel placeholder — Resend injects its own
+  out = out.replace("<!-- {{OPEN_PIXEL}} -->", "");
 
   return out;
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+// ---------------------------------------------------------------------------
+// Resend API call
+// ---------------------------------------------------------------------------
+
+async function sendViaResend(params: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  unsubscribeUrl: string;
+  recipientId: string;
+}): Promise<{ id: string }> {
+  const apiKey = Deno.env.get("RESEND_API_KEY");
+  if (!apiKey) throw new Error("RESEND_API_KEY secret not set");
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: params.from,
+      to: [params.to],
+      subject: params.subject,
+      html: params.html,
+      text: params.text ?? undefined,
+      headers: {
+        "List-Unsubscribe": `<${params.unsubscribeUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        "X-CC-Recipient-Id": params.recipientId,
+      },
+      tags: [
+        { name: "recipient_id", value: params.recipientId },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Resend API error (${response.status}): ${errorBody}`);
+  }
+
+  return await response.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -131,8 +154,9 @@ async function sendCampaign(
   const trackerBase = Deno.env.get("MAIL_TRACKER_BASE_URL");
   if (!trackerBase) return { error: "MAIL_TRACKER_BASE_URL secret not set" };
 
-  const fromEmail = Deno.env.get("GMAIL_BUSINESS") ?? "scott@crawford-coaching.ca";
+  const fromEmail = "scott@crawford-coaching.ca";
   const fromName = "Scott Crawford Coaching";
+  const fromFormatted = `${fromName} <${fromEmail}>`;
 
   // Insert campaign row as 'sending'
   const { data: campaign, error: campaignError } = await supabase
@@ -154,8 +178,6 @@ async function sendCampaign(
   if (campaignError) return { error: campaignError.message };
 
   const campaignId: string = campaign.id;
-  const transporter = createTransporter();
-
   let successCount = 0;
   const errors: string[] = [];
 
@@ -179,8 +201,9 @@ async function sendCampaign(
     }
 
     const recipientId: string = recipientRow.id;
+    const unsubscribeUrl = `${trackerBase}?action=unsubscribe&r=${encodeURIComponent(recipientId)}`;
 
-    // Personalise HTML
+    // Personalise HTML (no link rewriting — Resend handles tracking)
     const personalHtml = personaliseHtml(
       payload.html_body,
       recipient,
@@ -188,24 +211,28 @@ async function sendCampaign(
       trackerBase,
     );
 
-    // Send via SMTP
+    // Send via Resend
     try {
-      await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
+      const result = await sendViaResend({
+        from: fromFormatted,
         to: recipient.email,
         subject: payload.subject,
         html: personalHtml,
-        text: payload.text_body ?? undefined,
-        headers: {
-          "List-Unsubscribe": `<${trackerBase}?action=unsubscribe&r=${encodeURIComponent(recipientId)}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
+        text: payload.text_body,
+        unsubscribeUrl,
+        recipientId,
       });
+
+      // Store Resend's email ID for webhook cross-referencing
+      await supabase
+        .from("campaign_recipients")
+        .update({ resend_email_id: result.id })
+        .eq("id", recipientId);
+
       successCount++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${recipient.email}: ${msg}`);
-      // Mark recipient as bounced
       await supabase
         .from("campaign_recipients")
         .update({ status: "bounced" })
@@ -245,13 +272,12 @@ async function getCampaigns(
 
   const { data, error } = await supabase
     .from("sent_campaigns")
-    .select("id, campaign_type, subject, from_email, recipient_count, status, sent_at, created_at")
+    .select("id, campaign_type, subject, from_email, recipient_count, status, sent_at, created_at, edition_slug")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (error) return { error: error.message };
 
-  // Fetch per-campaign event counts in a single query
   const ids = (data ?? []).map((c: { id: string }) => c.id);
   const { data: events } = await supabase
     .from("campaign_events")

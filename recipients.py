@@ -16,9 +16,21 @@ class Recipient:
 
 
 def _supabase(settings: Settings) -> Any:
-    # Local workspace contains a `supabase/` folder; lazy import avoids startup
-    # failures and resolves correctly once the `supabase` Python package is installed.
-    from supabase import create_client
+    # The local `supabase/` edge-functions directory shadows the supabase Python
+    # package. Temporarily remove the project root from sys.path so the real
+    # installed package is found instead.
+    import sys
+    import pathlib
+
+    _root = str(pathlib.Path(__file__).parent)
+    _removed = _root in sys.path
+    if _removed:
+        sys.path.remove(_root)
+    try:
+        from supabase import create_client
+    finally:
+        if _removed:
+            sys.path.insert(0, _root)
 
     return create_client(settings.supabase_url, settings.supabase_service_role_key)
 
