@@ -1,6 +1,6 @@
 # Crawford Coaching Mailer — Project Summary
 
-*Generated: April 6, 2026. Updated after V2 alignment implementation.*
+*Generated: April 6, 2026. Updated after Send Email feature implementation.*
 
 ---
 
@@ -17,6 +17,10 @@ Webapp editor  →   /api/preview  →   renderer.py   →   send.py       →  
 Supabase Storage                                          │
   content.json                                           ↓
   images/                                           Gmail SMTP
+
+Webapp Email:  /email form  →  /api/email/preview  →  renderEmailPreview()  →  iframe
+                                       │
+                              /api/email/send  →  mail-sender (Edge Fn)  →  Gmail SMTP
 ```
 
 ---
@@ -174,8 +178,8 @@ The edge function also:
 |---|---|---|---|
 | `templates/newsletter.html` | 396 | ✅ Active | Single source of truth — read by `renderer.py` at send time |
 | `webapp/templates/newsletter.html` | 396 | ✅ Auto-synced | Copied from `templates/` by `npm run sync-templates` (runs on `predev`/`prebuild`) |
-| `templates/general.html` | — | ✅ Active | Plain/general email template |
-| `webapp/templates/general.html` | — | ✅ Auto-synced | Copied from `templates/` by sync script |
+| `templates/general.html` | ~170 | ✅ Active | Branded general-purpose email template (header, body, signature, social icons, credential badges). Used for one-off and direct-reply emails. |
+| `webapp/templates/general.html` | ~170 | ✅ Auto-synced | Copied from `templates/` by sync script |
 
 > **Template sync:** `webapp/package.json` has `predev` and `prebuild` scripts that copy from `templates/` before every `npm run dev` and `npm run build`. Edit only the root `templates/` copies.
 
@@ -279,10 +283,71 @@ Canonical definition: `NewsletterContent` interface in `webapp/lib/templates.ts`
 |---|---|---|
 | `SUPABASE_URL` | `config.py`, `renderer.py`, `webapp` | All Supabase operations; image URL resolution |
 | `SUPABASE_SERVICE_ROLE_KEY` | `config.py`, `webapp` | Supabase Storage and DB queries |
-| `MAIL_SENDER_BEARER_TOKEN` | `mailer.py` | Authenticating calls to `mail-sender` edge function |
+| `MAIL_SENDER_BEARER_TOKEN` | `mailer.py`, webapp | Authenticating calls to `mail-sender` edge function (Python CLI + webapp Send Email) |
 | `ANTHROPIC_API_KEY` | `renderer.py` | `--proofread` flag only |
 | `TOOL_PASSWORD` | `webapp/lib/auth.ts` | Webapp login |
-| `MAIL_SENDER_URL` | `config.py` | Optional override; defaults to `{SUPABASE_URL}/functions/v1/mail-sender` |
+| `MAIL_SENDER_URL` | `config.py`, webapp | Optional override; defaults to `{SUPABASE_URL}/functions/v1/mail-sender` |
+
+---
+
+## General Email Template
+
+`templates/general.html` provides a branded email layout for one-off and direct-reply emails, distinct from the full newsletter template.
+
+**Structure:** Crawford Coaching banner header (inset image) → greeting (`Hello {{FIRST_NAME}},`) → `{{BODY}}` content → branded signature (Scott Crawford ACC / Certified Coach and Personal Trainer) → 4 service mini-cards (WHOLE, Coaching, Synergize, Growth Zone) → social icons (Facebook, Instagram, LinkedIn) → credential badges (ICF ACC, Dare to Lead, ISSA) → copyright + address.
+
+**Rendering:** `renderer.py` → `render_general(body, first_name)` fills placeholders. `webapp/lib/templates.ts` → `renderEmailPreview(firstName, body)` does the same in TypeScript. Plain text is auto-converted to `<p>` tags with `<br>` for single newlines. HTML content is passed through unchanged.
+
+**One-off customisation pattern:** `render-jasu-reply.py` demonstrates how to render a general email with custom tweaks (greeting style change, unsubscribe removal, icon URL remapping). This can be adapted for future one-off sends.
+
+**Mail assets:** Social icons use `-dark` suffix filenames in Supabase Storage (`icon-facebook-dark.png`, `icon-instagram-dark.png`, `icon-linkedin-dark.png`). Badges and logo use their standard names.
+
+---
+
+## Webapp — Send Email Feature
+
+The webapp includes a full browser-based email compose and send workflow alongside the newsletter editor.
+
+### Welcome screen (`/`)
+
+Two cards: "Draft Newsletter" → `/editions`, "Send Email" → `/email`. Navigation bar has Home, Editions, Email, Sign Out links.
+
+### Email compose page (`/email`)
+
+Split-pane layout with resizable divider (same pattern as the edition editor):
+
+- **Left panel:** Form with send mode toggle (Individual/Group), recipient selection, subject, message textarea
+- **Right panel:** Live iframe preview via `renderEmailPreview()`
+
+### Send modes
+
+**Individual mode:**
+- Autocomplete search against `contacts` table by name or email
+- Select one or more recipients as chips
+- API: `GET /api/contacts/search?q=query`
+
+**Group mode:**
+- Pick a tag category (`day`, `slot`, `program`, `status`) — hardcoded from `contact_tags.category` CHECK constraint
+- Multi-select tags within that category — API: `GET /api/contacts/tags?category=X`
+- Optional contact status filter (`active`, `previous_client`, `lead`, `inactive`, or All)
+- Intersection logic: contact must match ALL selected tags
+- Shows matched recipient count — API: `GET /api/contacts/resolve?tags=X&tags=Y&status=Z`
+
+### Preview and send
+
+- **Preview:** `POST /api/email/preview` → calls `renderEmailPreview()` → returns HTML for iframe
+- **Send:** `POST /api/email/send` → renders HTML with `{{FIRST_NAME}}` token → calls `mail-sender` edge function → per-recipient personalisation and tracking
+- Confirmation dialog before send; success/error feedback inline
+
+### API routes
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/contacts/search` | GET | Search contacts by name/email |
+| `/api/contacts/tags` | GET | List distinct tags for a category |
+| `/api/contacts/resolve` | GET | Resolve recipients by tag intersection + status |
+| `/api/email/preview` | POST | Render branded email preview HTML |
+| `/api/email/send` | POST | Send email via mail-sender edge function |
 
 ---
 
@@ -308,3 +373,6 @@ Content JSON files may reference relative image paths (`assets/{slug}/{filename}
 
 ### 3. Edge function redeployment
 The `mail-sender` edge function has been updated locally to accept `edition_slug`. Run `supabase functions deploy mail-sender --no-verify-jwt` to deploy the change.
+
+### 4. Vercel env vars for Send Email
+Ensure `MAIL_SENDER_BEARER_TOKEN` is set in Vercel project settings for the webapp's Send Email feature to work in production.

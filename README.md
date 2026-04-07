@@ -21,6 +21,7 @@ Hybrid local workflow: Python CLI for composition/orchestration, Next.js webapp 
 - `supabase/functions/mail-sender/` — send campaigns via Gmail SMTP, per-recipient personalisation, click/open tracking injection
 - `supabase/functions/mail-tracker/` — open pixel, click redirect, unsubscribe handling
 - `templates/newsletter.html` — single source of truth (396-line v2 template); auto-copied to `webapp/templates/` via `npm run sync-templates`
+- `templates/general.html` — branded general-purpose email template (logo, body, signature, badges, social links)
 
 ## Template Sync
 
@@ -53,6 +54,22 @@ python3 -m pip install -r requirements.txt
 ```
 
 If `pip` is missing on Linux, install it first using your package manager, then run the command above.
+
+## General Email Template
+
+`templates/general.html` is a standalone branded email template for one-off and direct reply emails. It includes:
+
+- Crawford Coaching header with logo and tagline
+- `{{FIRST_NAME}}` greeting and `{{BODY}}` placeholder
+- Branded signature block (Scott Crawford / ACC / crawford-coaching.ca)
+- Footer with social icons (Facebook, Instagram, LinkedIn) and credential badges (ICF ACC, Dare to Lead, ISSA)
+- Copyright line
+
+`renderer.py` → `render_general(body, first_name)` renders the template. Plain text is auto-converted to HTML paragraphs; pre-formatted HTML is passed through unchanged.
+
+For one-off customisations (e.g. greeting changes, removing the unsubscribe block), see `render-jasu-reply.py` as a working reference.
+
+**Planned:** The webapp welcome screen will offer a choice between EMAIL and NEWSLETTER, enabling quick branded email composition in the browser using the same template.
 
 ## Usage
 

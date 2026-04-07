@@ -12,9 +12,9 @@ export default function Nav() {
     router.push("/login");
   }
 
-  const linkCls = (match: string) =>
+  const linkCls = (href: string) =>
     `font-sans text-xs tracking-widest uppercase transition-colors ${
-      pathname.startsWith(match)
+      pathname === href || (href !== "/" && pathname.startsWith(href))
         ? "text-white"
         : "text-mist hover:text-pale"
     }`;
@@ -23,7 +23,9 @@ export default function Nav() {
     <header className="bg-slate border-b border-fog px-6 py-3 flex items-center justify-between">
       <p className="font-serif text-lg text-white tracking-wide">Crawford Coaching</p>
       <nav className="flex items-center gap-8">
-        <Link href="/" className={linkCls("/editions") || pathname === "/" ? "text-white font-sans text-xs tracking-widest uppercase" : "text-mist hover:text-pale font-sans text-xs tracking-widest uppercase"}>Editions</Link>
+        <Link href="/" className={linkCls("/")}>Home</Link>
+        <Link href="/editions" className={linkCls("/editions")}>Editions</Link>
+        <Link href="/email" className={linkCls("/email")}>Email</Link>
         <button
           onClick={handleLogout}
           className="text-fog hover:text-mist font-sans text-xs tracking-widest uppercase transition-colors"

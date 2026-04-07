@@ -1,7 +1,7 @@
 # Crawford Coaching Mailer — Handoff
 
 **Last updated:** April 6, 2026
-**Context:** V2 alignment update complete. All template, renderer, pipeline, and archive changes implemented and verified.
+**Context:** Send Email feature implemented. New branded email template deployed, webapp now has a welcome screen with Newsletter/Email workflows, and full email compose + send via browser.
 
 ---
 
@@ -10,7 +10,7 @@
 A newsletter and email system for Crawford Coaching. Two main parts:
 
 1. **Python CLI pipeline** — renders newsletter HTML from JSON content, sends via Supabase Edge Function + Gmail SMTP, archives output locally
-2. **Next.js webapp** — browser-based edition editor with live preview, hosted on Vercel
+2. **Next.js webapp** — browser-based edition editor with live preview, **plus branded email compose and send**, hosted on Vercel
 
 Content lives in Supabase Storage (`newsletters/{slug}/content.json`). Sending happens locally via `send.py`. Tracking (opens, clicks, unsubscribes) is handled by `mail-tracker` edge function.
 
@@ -56,7 +56,7 @@ Webapp:  editions editor  →  /api/preview  →  templates.ts  →  iframe prev
 | File | Role |
 |---|---|
 | `templates/newsletter.html` | **Single source of truth** — 396-line v2 template |
-| `templates/general.html` | General/plain email template |
+| `templates/general.html` | Branded email template — banner header, signature, 4 service mini-cards, badges, social icons |
 | `webapp/templates/*` | Auto-copied from `templates/` by `npm run sync-templates` (wired into `predev`/`prebuild`) |
 
 **Rule:** Only edit `templates/newsletter.html`. The webapp copies are auto-synced.
@@ -65,11 +65,19 @@ Webapp:  editions editor  →  /api/preview  →  templates.ts  →  iframe prev
 
 | File | Role |
 |---|---|
-| `webapp/lib/templates.ts` | TypeScript renderer port — `renderNewsletterPreview()`. Has `_CAPTION_PLAIN` flags matching Python |
+| `webapp/lib/templates.ts` | TypeScript renderer port — `renderNewsletterPreview()` + `renderEmailPreview()`. Has `_CAPTION_PLAIN` flags matching Python |
+| `webapp/app/page.tsx` | Welcome screen — two cards: "Draft Newsletter" → `/editions`, "Send Email" → `/email` |
+| `webapp/app/email/page.tsx` | Email compose form: Individual/Group send modes, split-pane preview, send action |
 | `webapp/app/editions/[slug]/page.tsx` | Split-pane editor: form left, live preview right |
 | `webapp/app/editions/page.tsx` | Edition list with analytics |
+| `webapp/app/api/contacts/search/route.ts` | Contact search by name/email (autocomplete) |
+| `webapp/app/api/contacts/tags/route.ts` | List tags by category (day/slot/program/status) |
+| `webapp/app/api/contacts/resolve/route.ts` | Resolve group recipients by tags + status filter |
+| `webapp/app/api/email/preview/route.ts` | Render branded email preview HTML |
+| `webapp/app/api/email/send/route.ts` | Send email via mail-sender edge function |
 | `webapp/components/ImageUpload.tsx` | Drag-drop image upload to Supabase Storage |
 | `webapp/components/PreviewPanel.tsx` | Iframe preview of rendered HTML |
+| `webapp/components/Nav.tsx` | Navigation bar — Home, Editions, Email, Sign Out |
 | `webapp/package.json` | Has `sync-templates`, `predev`, `prebuild` scripts |
 
 ### Edge functions
@@ -101,6 +109,25 @@ Renderer output was diffed against `test-render-issue15.html`. Only difference: 
 
 ---
 
+## Send Email feature (implemented April 6 2026)
+
+### What was built
+- **New branded email template** (`templates/general.html`) — banner header image inset, Georgia serif body, signature block, 4 service mini-cards (WHOLE, Coaching, Synergize, Growth Zone), social icons, credential badges, copyright footer
+- **Webapp welcome screen** (`/`) — two cards: "Draft Newsletter" → `/editions`, "Send Email" → `/email`
+- **Email compose page** (`/email`) — split-pane with form (left) and live preview (right)
+  - **Individual mode** — search contacts by name/email, select one or more
+  - **Group mode** — pick tag category → select tags (intersection logic) → optional status filter → shows matched count
+  - Subject line + message textarea (plain text → auto-paragraphed)
+  - Preview button renders in iframe; Send button calls mail-sender edge function
+- **5 API routes** — `/api/contacts/search`, `/api/contacts/tags`, `/api/contacts/resolve`, `/api/email/preview`, `/api/email/send`
+- **`renderEmailPreview()`** added to `webapp/lib/templates.ts`
+- Navigation updated with Home, Editions, Email links
+
+### Webapp env vars for email send
+The webapp needs `MAIL_SENDER_BEARER_TOKEN` in Vercel env vars (and optionally `MAIL_SENDER_URL`) for the Send Email feature to work in production.
+
+---
+
 ## What still needs doing
 
 ### Deploy edge function
@@ -108,6 +135,9 @@ Renderer output was diffed against `test-render-issue15.html`. Only difference: 
 supabase functions deploy mail-sender --no-verify-jwt
 ```
 The local code has the `edition_slug` changes. This must be deployed before the next newsletter send.
+
+### Vercel env vars
+Ensure `MAIL_SENDER_BEARER_TOKEN` is set in Vercel project settings for the Send Email feature.
 
 ### Old `archive/` directory
 `archive/newsletters/` contains one pre-V2 legacy send. Can be moved to `_archive/` or deleted.
@@ -150,6 +180,8 @@ cd webapp && npm run sync-templates
 | `MAIL_SENDER_BEARER_TOKEN` | `mailer.py` | Auth for edge function |
 | `ANTHROPIC_API_KEY` | `renderer.py` | `--proofread` only |
 | `TOOL_PASSWORD` | Webapp | Login passcode |
+| `MAIL_SENDER_BEARER_TOKEN` | Webapp + `mailer.py` | Auth for edge function (needed for webapp Send Email) |
+| `MAIL_SENDER_URL` | Webapp + `config.py` | Optional override; defaults to `{SUPABASE_URL}/functions/v1/mail-sender` |
 
 Python reads from `.env`. Webapp reads from `.env.local` (local) or Vercel env vars (production).
 
@@ -161,5 +193,5 @@ Python reads from `.env`. Webapp reads from `.env.local` (local) or Vercel env v
 - **`{{UNSUBSCRIBE_URL}}`** left as literal token by renderer — edge function replaces per-recipient at send time
 - **Slug format:** `{number}-{kebab-title}` e.g. `15-becoming-a-snacker`
 - **No Supabase Auth** — shared passcode via `TOOL_PASSWORD`, 7-day cookie
-- **Python renderer is the send-time renderer** — webapp is for editing/preview only
+- **Python renderer is the send-time renderer for newsletters** — webapp can also send general emails directly via its own `/api/email/send` route
 - **Migration 003** (`edition_slug` column on `sent_campaigns`) — already run in Supabase

@@ -361,3 +361,33 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>): strin
 
   return processConditionals(html, flags);
 }
+
+// ---------------------------------------------------------------------------
+// General email preview render
+// Mirrors renderer.py's render_general. The general.html template uses
+// {{FIRST_NAME}}, {{BODY}}, and {{CURRENT_YEAR}}.
+// ---------------------------------------------------------------------------
+
+export function renderEmailPreview(firstName: string, body: string): string {
+  let html = loadTemplate("general");
+
+  // Convert plain text to HTML paragraphs (matches renderer.py behaviour)
+  let bodyHtml = body.trim();
+  if (bodyHtml && !bodyHtml.includes("<")) {
+    bodyHtml = bodyHtml
+      .split(/\n\n+/)
+      .filter((p) => p.trim())
+      .map(
+        (p) =>
+          `<p style="margin:0 0 18px 0;">${escapeHtml(p.trim()).replace(/\n/g, "<br>")}</p>`,
+      )
+      .join("\n");
+  }
+
+  html = html
+    .replace(/\{\{BODY\}\}/g, bodyHtml)
+    .replace(/\{\{FIRST_NAME\}\}/g, escapeHtml(firstName || "there"))
+    .replace(/\{\{CURRENT_YEAR\}\}/g, new Date().getFullYear().toString());
+
+  return html;
+}
