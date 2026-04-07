@@ -289,7 +289,7 @@ export default function EditionPage() {
     let varsToSend = form;
     const sections = ["food_body", "food_thought", "food_brain", "food_soul"] as const;
     const needsSharePages = sections.some(
-      (k) => form[k] && (form[k] as Record<string, unknown>).copy && !(form[k] as Record<string, unknown>).share_url,
+      (k) => { const s = form[k]; return s && s.copy && !s.share_url; },
     );
 
     if (needsSharePages) {
@@ -304,9 +304,10 @@ export default function EditionPage() {
         if (spRes.ok && spData.share_urls) {
           // Merge share URLs into form data for the send
           const merged = { ...form };
-          for (const [sectionKey, url] of Object.entries(spData.share_urls as Record<string, string>)) {
-            if (merged[sectionKey] && typeof merged[sectionKey] === "object") {
-              merged[sectionKey] = { ...(merged[sectionKey] as Record<string, unknown>), share_url: url };
+          for (const sectionKey of sections) {
+            const url = (spData.share_urls as Record<string, string>)[sectionKey];
+            if (url && merged[sectionKey]) {
+              merged[sectionKey] = { ...merged[sectionKey], share_url: url };
             }
           }
           varsToSend = merged;
