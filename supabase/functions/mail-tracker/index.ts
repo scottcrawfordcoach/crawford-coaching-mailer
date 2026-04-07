@@ -147,7 +147,7 @@ async function handleUnsubscribe(recipientId: string): Promise<Response> {
     if (recipient.contact_id) {
       await supabase
         .from("contacts")
-        .update({ newsletter_status: "unsubscribed" })
+        .update({ newsletter_status: "unsubscribed", newsletter_enabled: false })
         .eq("id", recipient.contact_id);
     }
   }
