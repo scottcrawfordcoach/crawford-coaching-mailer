@@ -1073,8 +1073,8 @@ export default function EditionPage() {
                           >
                             {r.url}
                           </a>
-                          {r.error && !r.ok && (
-                            <span className="ml-2 text-xs text-mist">({r.error})</span>
+                          {r.error && (
+                            <span className={`ml-2 text-xs ${r.ok ? "text-mist" : "text-mist"}`}>({r.error})</span>
                           )}
                         </td>
                       </tr>

@@ -557,7 +557,7 @@ export default function EmailPage() {
                           >
                             {r.url}
                           </a>
-                          {r.error && !r.ok && (
+                          {r.error && (
                             <span className="ml-2 text-xs text-mist">({r.error})</span>
                           )}
                         </td>

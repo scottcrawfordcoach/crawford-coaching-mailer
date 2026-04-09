@@ -39,6 +39,10 @@ async function checkUrl(url: string): Promise<LinkResult> {
       });
       return { url, status: getRes.status, ok: getRes.ok };
     }
+    // LinkedIn returns 999 to block automated tools — link works fine for real users
+    if (res.status === 999) {
+      return { url, status: 999, ok: true, error: "anti-bot block" };
+    }
     return { url, status: res.status, ok: res.ok };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Network error";
