@@ -210,7 +210,9 @@ def _maybe_proofread(value: str, proofread: bool) -> str:
 def _resolve_image(path_or_url: str) -> str:
     """
     Mirrors webapp's resolveImageSrc(). Converts a relative asset path such as
-    'assets/15-becoming-a-snacker/body-plate.png' to a full Supabase public URL.
+    'assets/15-becoming-a-snacker/body-plate.png' to a proxied URL on
+    app.crawford-coaching.ca so all image URLs in emails use the trusted
+    sending domain rather than the raw Supabase project subdomain.
     Absolute URLs (starting with 'http') are returned unchanged.
     """
     val = (path_or_url or "").strip()
@@ -220,8 +222,7 @@ def _resolve_image(path_or_url: str) -> str:
     parts = [p for p in parts if p]
     filename = parts[-1] if parts else ""
     slug = parts[-2] if len(parts) >= 2 else ""
-    base = os.getenv("SUPABASE_URL", "").rstrip("/")
-    return f"{base}/storage/v1/object/public/newsletters/{slug}/images/{filename}"
+    return f"https://app.crawford-coaching.ca/assets/newsletters/{slug}/images/{filename}"
 
 
 # ── Supabase Storage upload ──────────────────────────────────────────────────

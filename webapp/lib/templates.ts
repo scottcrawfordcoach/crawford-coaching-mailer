@@ -92,7 +92,9 @@ function str(value: string | null | undefined): string {
 }
 
 // Resolves a legacy relative image path (e.g. "assets/15-becoming-a-snacker/rx-bar.png")
-// to its full Supabase public URL. Absolute URLs are returned unchanged.
+// to a proxied URL on app.crawford-coaching.ca so all image URLs in emails use the
+// trusted sending domain rather than the raw Supabase project subdomain.
+// Absolute URLs are returned unchanged.
 function resolveImageSrc(image: string | null | undefined): string {
   const val = (image ?? "").trim();
   if (!val || val.startsWith("http")) return val;
@@ -100,8 +102,7 @@ function resolveImageSrc(image: string | null | undefined): string {
   const parts = val.replace(/\\/g, "/").split("/").filter(Boolean);
   const filename = parts[parts.length - 1] ?? "";
   const slug = parts[parts.length - 2] ?? "";
-  const base = process.env.SUPABASE_URL ?? "";
-  return `${base}/storage/v1/object/public/newsletters/${slug}/images/${filename}`;
+  return `https://app.crawford-coaching.ca/assets/newsletters/${slug}/images/${filename}`;
 }
 
 // ---------------------------------------------------------------------------
