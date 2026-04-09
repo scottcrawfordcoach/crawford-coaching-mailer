@@ -10,17 +10,10 @@ export interface LinkResult {
 
 // Extract unique http/https hrefs from an HTML string
 function extractLinks(html: string): string[] {
-  const seen = new Set<string>();
+  const full = new Set<string>();
   const re = /href="(https?:\/\/[^"]+)"/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
-    const url = m[1].split("?")[0]; // dedupe tracking variants by base URL
-    seen.add(m[1]); // but store the full URL for the check
-  }
-  // Actually store full URL for checking, dedupe exact URLs
-  const full = new Set<string>();
-  const re2 = /href="(https?:\/\/[^"]+)"/gi;
-  while ((m = re2.exec(html)) !== null) {
     full.add(m[1]);
   }
   return Array.from(full);
@@ -36,6 +29,16 @@ async function checkUrl(url: string): Promise<LinkResult> {
       redirect: "follow",
       headers: { "User-Agent": "Crawford-Coaching-LinkChecker/1.0" },
     });
+    // Some servers (Amazon, LinkedIn) block HEAD but allow GET — retry with GET
+    if (res.status === 405) {
+      const getRes = await fetch(url, {
+        method: "GET",
+        signal: controller.signal,
+        redirect: "follow",
+        headers: { "User-Agent": "Crawford-Coaching-LinkChecker/1.0" },
+      });
+      return { url, status: getRes.status, ok: getRes.ok };
+    }
     return { url, status: res.status, ok: res.ok };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Network error";
