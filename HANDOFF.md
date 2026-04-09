@@ -1,7 +1,7 @@
 # Crawford Coaching Mailer — Handoff
 
-**Last updated:** April 6, 2026
-**Context:** Send Email feature implemented. New branded email template deployed, webapp now has a welcome screen with Newsletter/Email workflows, and full email compose + send via browser.
+**Last updated:** April 9, 2026
+**Context:** Webapp deployed to app.crawford-coaching.ca. DMARC set. Test Links feature added. Social share generation disabled for MVP. Documentation updated. `TOOL_PASSWORD` still needs to be set in Vercel.
 
 ---
 
@@ -75,6 +75,8 @@ Webapp:  editions editor  →  /api/preview  →  templates.ts  →  iframe prev
 | `webapp/app/api/contacts/resolve/route.ts` | Resolve group recipients by tags + status filter |
 | `webapp/app/api/email/preview/route.ts` | Render branded email preview HTML |
 | `webapp/app/api/email/send/route.ts` | Send email via mail-sender edge function |
+| `webapp/app/api/check-links/route.ts` | POST rendered HTML → HEAD-checks all hrefs → returns {url, status, ok, error} per link |
+| `webapp/app/share/[slug]/[section]/route.ts` | GET proxy: fetches HTML from Supabase Storage, re-serves as `text/html` (Storage overrides to `text/plain`) |
 | `webapp/components/ImageUpload.tsx` | Drag-drop image upload to Supabase Storage |
 | `webapp/components/PreviewPanel.tsx` | Iframe preview of rendered HTML |
 | `webapp/components/Nav.tsx` | Navigation bar — Home, Editions, Email, Sign Out |
@@ -128,22 +130,48 @@ The webapp needs `MAIL_SENDER_BEARER_TOKEN` in Vercel env vars (and optionally `
 
 ---
 
-## What still needs doing
+## April 9, 2026 session additions
 
-### Deploy edge function
+### Test Links feature
+- New `/api/check-links` route: extracts all hrefs from rendered HTML, HEAD-checks each (8 s timeout, max 40), returns status per link. 405 responses retried with GET. LinkedIn 999 treated as `ok: true` with `error: "anti-bot block"`.
+- **Test Links** button added to both `/editions/[slug]` and `/email` action bars. Right panel switches from preview to results table on click.
+- Committed: `a3b3bb6`
+
+### DMARC
+- `v=DMARC1; p=none; rua=mailto:scott@crawford-coaching.ca` added to `_dmarc.crawford-coaching.ca`
+- Verified via Google DNS API
+
+### Social share generation disabled for MVP
+- `renderer.py`: `_generate_share_pages()` call commented out
+- `webapp/app/editions/[slug]/page.tsx`: `needsSharePages` block removed from send handler
+- `{{#if *_SHARE_URL}}` blocks naturally suppress "Share it →" links when `share_url` is empty
+- Revisit when share pages are stable
+
+---
+
+### ~~Deploy edge function~~ (likely done)
+If `mail-sender` hasn't been redeployed since V2 changes:
 ```bash
 supabase functions deploy mail-sender --no-verify-jwt
 ```
-The local code has the `edition_slug` changes. This must be deployed before the next newsletter send.
 
-### Vercel env vars
-Ensure `MAIL_SENDER_BEARER_TOKEN` is set in Vercel project settings for the Send Email feature.
+### Set `TOOL_PASSWORD` on Vercel
+Webapp login will fail without this. Set in:
+https://vercel.com/scott-crawfords-projects-b5b5a730/webapp/settings/environment-variables
 
-### Old `archive/` directory
-`archive/newsletters/` contains one pre-V2 legacy send. Can be moved to `_archive/` or deleted.
+After setting, redeploy:
+```bash
+rm -rf ~/crawford-webapp-build && cp -r webapp ~/crawford-webapp-build
+cp templates/newsletter.html ~/crawford-webapp-build/templates/
+cp templates/general.html ~/crawford-webapp-build/templates/
+bash -i -c "cd ~/crawford-webapp-build && npx vercel --prod"
+```
+
+### Short URL replacement in content
+Replace `youtu.be/...` and `a.co/...` links with full URLs before sending. Short URLs can trigger spam filters.
 
 ### Content images
-Before any newsletter send, verify every image in the content JSON exists at its resolved Supabase Storage URL. Relative paths like `assets/{slug}/{filename}` are auto-resolved to Supabase public URLs by both renderers, but only work if images have been uploaded.
+Before sending, verify every image in content JSON exists at its Supabase Storage URL. Relative `assets/{slug}/{filename}` paths are auto-resolved at render time.
 
 ---
 
@@ -194,4 +222,69 @@ Python reads from `.env`. Webapp reads from `.env.local` (local) or Vercel env v
 - **Slug format:** `{number}-{kebab-title}` e.g. `15-becoming-a-snacker`
 - **No Supabase Auth** — shared passcode via `TOOL_PASSWORD`, 7-day cookie
 - **Python renderer is the send-time renderer for newsletters** — webapp can also send general emails directly via its own `/api/email/send` route
+
+---
+
+## ~~ACTIVE TASK: Fix Social Share Page 404s~~ — COMPLETED April 9 2026
+
+### What was done
+- `renderer.py` + `webapp/app/api/newsletter/share-pages/route.ts` — share URLs updated to `https://app.crawford-coaching.ca/share/{slug}/{section}`
+- `webapp/package.json` — `prebuild`/`predev` `sync-templates` made graceful (skips copy if `../templates/` not found; required for Vercel build env)
+- Webapp built on Linux (exFAT drive can't create symlinks; built in `~/crawford-webapp-build/` then deployed)
+- Deployed to Vercel at **https://app.crawford-coaching.ca** (domain already on Vercel nameservers, auto-provisioned)
+- Env vars set on Vercel: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `MAIL_SENDER_BEARER_TOKEN`, `ANTHROPIC_API_KEY`
+- Verified: `curl -sI https://app.crawford-coaching.ca/share/15-becoming-a-snacker/body` → **200 text/html** ✓
+- Committed and pushed as `3668752`
+
+### Still needs manual action
+- **`TOOL_PASSWORD`** — set in Vercel dashboard (webapp login password; currently unset, login will fail)
+  - Dashboard: https://vercel.com/scott-crawfords-projects-b5b5a730/webapp/settings/environment-variables
+  - After setting, run: `npx vercel --prod` from `~/crawford-webapp-build/`
+
+### Note on already-sent emails
+The newsletter already delivered has `crawford-coaching.ca/share/...` URLs
+baked in. Those stay broken unless a redirect is added. Future newsletters
+will use the correct `app.crawford-coaching.ca` URLs.
+
+---
+
+## Resend deliverability warnings (April 9 2026)
+
+Resend flagged these issues on the issue-15 send. Addressed/not-addressed status:
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| Share links pointing to Supabase URL | ✅ Fixed | Now use `app.crawford-coaching.ca` |
+| Unsubscribe link on Supabase domain | ⚠️ Low priority | `mail-tracker` edge function — acceptable |
+| Images hosted on Supabase (not sending domain) | ⚠️ Design limitation | Would require CDN on `crawford-coaching.ca` |
+| Amazon short links (`a.co/...`) in content | ⚠️ Fix in content | Replace with full `amazon.ca/...` URLs in newsletter content JSON |
+| YouTube short links (`youtu.be/...`) | ⚠️ Fix in content | Replace with `youtube.com/watch?v=...` in content JSON |
+| No DMARC record | ⚠️ DNS action needed | Add `TXT _dmarc.crawford-coaching.ca "v=DMARC1; p=none; rua=mailto:scott@crawford-coaching.ca"` |
+
+---
+
+## Recent changes (April 7–9, 2026)
+
+### Email tracking
+- **Open pixel tracking** — works via `mail-tracker` (custom 1×1 GIF)
+- **Click tracking** — REMOVED (redirect links caused Gmail to flag as phishing/spam)
+- **UTM parameters** — added to all `crawford-coaching.ca` links in sent emails
+  - `utm_source` = campaign type (`general` / `newsletter`)
+  - `utm_medium` = `email`
+  - `utm_campaign` = edition slug or slugified subject
+  - Handles both single and double-quoted href attributes
+  - Unsubscribe + external links are untouched
+- **Resend tracking** — `tracking: { open: true, click: true }` enabled in API call, but Resend webhook delivery to Supabase is not working (deferred)
+
+### Unsubscribe flow
+- Email unsubscribe link → `mail-tracker?action=unsubscribe&r={id}` → sets `contacts.newsletter_enabled = false`
+- Preference center unsubscribe wrote to `subscription_changes` but did NOT update `contacts` table (bug — manually fixed for `scott.synergize@gmail.com`)
+
+### Commits since last handoff
+```
+cf03d50 Add UTM parameter tagging to all emails
+3875169 Remove click-tracking link rewriting to avoid spam
+375065e Fix share pages: proxy HTML through webapp route
+b51f075 Re-enable custom open/click tracking via mail-tracker
+```
 - **Migration 003** (`edition_slug` column on `sent_campaigns`) — already run in Supabase

@@ -1,6 +1,6 @@
 # Crawford Coaching Mailer — Project Summary
 
-*Generated: April 6, 2026. Updated after Send Email feature implementation.*
+*Generated: April 6, 2026. Updated: April 9, 2026 — webapp deployment, Test Links feature, DMARC, social share disabled.*
 
 ---
 
@@ -77,6 +77,14 @@ Absolute `https://` URLs are passed through unchanged.
 | `webapp/components/PreviewPanel.tsx` | Renders returned HTML in `<iframe srcDoc={html}>` with loading overlay |
 
 The preview is the canonical reference for what the final email should look like.
+
+### Test Links
+
+| File | Role |
+|---|---|
+| `webapp/app/api/check-links/route.ts` | POST `{ html }` → extracts all hrefs, HEAD-checks each (8 s timeout, max 40), returns `{url, status, ok, error}` array |
+
+Both the edition editor (`/editions/[slug]`) and email compose page (`/email`) have a **Test Links** button in the action bar. On click, the current rendered HTML is sent to `/api/check-links`, and the right panel switches from the live preview to a results table showing status codes for every link. 405 responses are retried with GET. LinkedIn 999 responses are flagged as `ok` with annotation `"anti-bot block"`.
 
 ---
 
@@ -158,8 +166,9 @@ python send.py \
 | `{{CURRENT_YEAR}}` | Current year |
 
 The edge function also:
-- Rewrites all `href` links through the `mail-tracker` click URL
+- ~~Rewrites `href` links through `mail-tracker` click URL~~ — **removed** (caused Gmail phishing flag)
 - Injects the open-tracking pixel `<img>`
+- Inserts UTM parameters (`utm_source`, `utm_medium`, `utm_campaign`) on all `crawford-coaching.ca` links
 - Inserts rows into `sent_campaigns`, `campaign_recipients`
 
 ---
@@ -257,6 +266,7 @@ Canonical definition: `NewsletterContent` interface in `webapp/lib/templates.ts`
 | `{{#if LOCAL_ENABLED}}` | Local news block is shown |
 | `{{#if LOCAL_CTA_LABEL}}` | Local news CTA button shown |
 | `{{#if *_CTA_LABEL}}` | CTA button shown for any section |
+| `{{#if *_SHARE_URL}}` | "Share it →" link shown for a section — suppressed when `share_url` is empty (disabled for MVP) |
 
 ---
 
@@ -348,6 +358,20 @@ Split-pane layout with resizable divider (same pattern as the edition editor):
 | `/api/contacts/resolve` | GET | Resolve recipients by tag intersection + status |
 | `/api/email/preview` | POST | Render branded email preview HTML |
 | `/api/email/send` | POST | Send email via mail-sender edge function |
+| `/api/check-links` | POST | Check all hrefs in rendered HTML, return HTTP status per link |
+| `/share/[slug]/[section]` | GET | Proxy: fetch Supabase Storage HTML, re-serve as `text/html` (workaround for Storage `text/plain` override) |
+
+---
+
+## Webapp Deployment
+
+The webapp is deployed to **https://app.crawford-coaching.ca** via Vercel.
+
+- **Vercel project:** `scott-crawfords-projects-b5b5a730/webapp`
+- **DNS:** `app` CNAME on `crawford-coaching.ca` → Vercel; auto-provisioned TLS
+- **Build constraint:** `npm install` must run from an ext4 path (exFAT Crucial X9 doesn't support symlinks). Copy webapp to `~/crawford-webapp-build/` before every build/deploy.
+- **`sync-templates` prebuild:** Made graceful with shell conditional guards — skips silently on Vercel build servers where `../templates/` doesn't exist.
+- **Vercel env vars:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `MAIL_SENDER_BEARER_TOKEN`, `ANTHROPIC_API_KEY`, `TOOL_PASSWORD`
 
 ---
 
@@ -362,6 +386,10 @@ The following issues were identified pre-V2 and have been resolved:
 5. **`newsletter-form.html` superseded** — moved to `_archive/`.
 6. **`_build-resources/` stale** — moved to `_archive/`.
 7. **Template v2** — both templates replaced with 396-line compact version matching the reference design. Adds smart caption links (`_CAPTION_PLAIN` flags), corrected typography/spacing, restructured Gym News and Local News sections.
+8. **DMARC** — `v=DMARC1; p=none; rua=mailto:scott@crawford-coaching.ca` added to DNS; verified via Google DNS API.
+9. **Click tracking removed** — `mail-tracker` click redirect caused Gmail phishing flag; removed from edge function. Open pixel tracking retained.
+10. **Social share disabled for MVP** — `renderer.py` `_generate_share_pages()` call commented out; `needsSharePages` block removed from webapp send handler. `{{#if *_SHARE_URL}}` blocks naturally suppress share links when `share_url` is empty. Revisit when share links are stable.
+11. **Test Links feature** — `/api/check-links` route + button on both editor pages; 405→GET retry; LinkedIn 999 treated as ok.
 
 ## Remaining Items
 
@@ -374,5 +402,8 @@ Content JSON files may reference relative image paths (`assets/{slug}/{filename}
 ### 3. Edge function redeployment
 The `mail-sender` edge function has been updated locally to accept `edition_slug`. Run `supabase functions deploy mail-sender --no-verify-jwt` to deploy the change.
 
-### 4. Vercel env vars for Send Email
-Ensure `MAIL_SENDER_BEARER_TOKEN` is set in Vercel project settings for the webapp's Send Email feature to work in production.
+### 4. Short URL replacement in content
+Replace `youtu.be/...` and `a.co/...` links in content JSON with full URLs before sending — Gmail and other clients may flag shortened URLs as suspicious.
+
+### 5. `TOOL_PASSWORD` on Vercel
+Confirm `TOOL_PASSWORD` is set in Vercel env vars (required for webapp login gate).

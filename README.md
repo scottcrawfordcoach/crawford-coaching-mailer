@@ -11,21 +11,39 @@ Hybrid local workflow: Python CLI for composition/orchestration, Next.js webapp 
 - `mailer.py` — HTTP client to `mail-sender` edge function (passes `edition_slug`)
 - `archiver.py` — archives rendered HTML + `content.json` to `archives/{slug}/`
 
-**Webapp (Next.js):**
-- Split-pane edition editor with live preview at `webapp/`
-- Content stored in Supabase Storage as `newsletters/{slug}/content.json`
+**Webapp (Next.js) — deployed at https://app.crawford-coaching.ca:**
+- Split-pane newsletter edition editor with live preview
+- Branded email compose + send (`/email`)
 - Image upload to Supabase Storage with drag-drop
 - Edition listing with send analytics (opens, clicks, unsubs)
+- **Test Links** button on both editor pages — checks all hrefs in rendered HTML, reports HTTP status codes
+- Share page proxy at `/share/[slug]/[section]` — serves Supabase HTML with correct `Content-Type` (disabled at send time for MVP)
 
 **Infrastructure:**
-- `supabase/functions/mail-sender/` — send campaigns via Gmail SMTP, per-recipient personalisation, click/open tracking injection
-- `supabase/functions/mail-tracker/` — open pixel, click redirect, unsubscribe handling
+- `supabase/functions/mail-sender/` — send campaigns via Gmail SMTP, per-recipient personalisation, open tracking injection
+- `supabase/functions/mail-tracker/` — open pixel, unsubscribe handling *(click redirect removed — caused Gmail phishing flag)*
 - `templates/newsletter.html` — single source of truth (396-line v2 template); auto-copied to `webapp/templates/` via `npm run sync-templates`
 - `templates/general.html` — branded general-purpose email template (logo, body, signature, badges, social links)
 
+## Webapp Deployment
+
+The webapp is deployed to **https://app.crawford-coaching.ca** via Vercel.
+
+Build must be run from a local ext4 path (not the exFAT Crucial X9 drive — symlinks not supported):
+
+```bash
+rm -rf ~/crawford-webapp-build
+cp -r webapp ~/crawford-webapp-build
+cp templates/newsletter.html ~/crawford-webapp-build/templates/
+cp templates/general.html ~/crawford-webapp-build/templates/
+bash -i -c "cd ~/crawford-webapp-build && npx next build && npx vercel --prod"
+```
+
+Vercel env vars required: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `MAIL_SENDER_BEARER_TOKEN`, `ANTHROPIC_API_KEY`, `TOOL_PASSWORD`
+
 ## Template Sync
 
-`templates/` is the canonical location. The webapp's copies in `webapp/templates/` are auto-synced via `predev` and `prebuild` scripts in `webapp/package.json`. Edit only `templates/newsletter.html` — never edit the webapp copy directly.
+`templates/` is the canonical location. The webapp's copies in `webapp/templates/` are auto-synced via `predev` and `prebuild` scripts in `webapp/package.json`. The sync script is graceful — skips silently when `../templates/` isn't present (e.g. on Vercel build servers). Edit only `templates/newsletter.html` — never edit the webapp copy directly.
 
 ## Archive
 
@@ -34,26 +52,33 @@ Hybrid local workflow: Python CLI for composition/orchestration, Next.js webapp 
 
 ## Required Environment
 
-Create `.env` from `.env.example` and set:
+Create `.env` and set:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `MAIL_SENDER_BEARER_TOKEN`
+- `ANTHROPIC_API_KEY` (optional — `--proofread` only)
 
-Optional:
+Webapp (Vercel env vars): same as above plus `TOOL_PASSWORD`
+
+Optional Python CLI:
 
 - `MAIL_SENDER_URL` (defaults to `${SUPABASE_URL}/functions/v1/mail-sender`)
 - `FROM_NAME`
 
-## Install Python Dependency
-
-The CLI requires `supabase`:
+## Install Python Dependencies
 
 ```bash
 python3 -m pip install -r requirements.txt
 ```
 
-If `pip` is missing on Linux, install it first using your package manager, then run the command above.
+## Deliverability Notes
+
+- **DMARC** — `v=DMARC1; p=none; rua=mailto:scott@crawford-coaching.ca` set on `_dmarc.crawford-coaching.ca`
+- **Click tracking removed** — caused Gmail phishing flag; open pixel tracking retained
+- **UTM parameters** — added to all `crawford-coaching.ca` links at send time
+- **Avoid short URLs** — use `youtube.com/watch?v=...` not `youtu.be/...`; full Amazon URLs not `a.co/...`
+- **Social share links** — disabled for MVP; `{{#if *_SHARE_URL}}` blocks won't render when `share_url` is empty
 
 ## General Email Template
 
@@ -69,7 +94,7 @@ If `pip` is missing on Linux, install it first using your package manager, then 
 
 For one-off customisations (e.g. greeting changes, removing the unsubscribe block), see `render-jasu-reply.py` as a working reference.
 
-**Planned:** The webapp welcome screen will offer a choice between EMAIL and NEWSLETTER, enabling quick branded email composition in the browser using the same template.
+The webapp `/email` page enables quick branded email composition in the browser using the same template.
 
 ## Usage
 
@@ -131,12 +156,15 @@ List recent campaigns:
 python3 send.py --action campaigns --limit 10 --offset 0
 ```
 
-## Webapp
+## Webapp (Local Dev)
+
+> **Note:** `npm install` must be run from an ext4 path, not the exFAT Crucial X9 drive.
 
 ```bash
-cd webapp
-npm install
-npm run dev    # http://localhost:3000
+rm -rf ~/crawford-webapp-build
+cp -r webapp ~/crawford-webapp-build
+cd ~/crawford-webapp-build
+bash -i -c "npm install && npm run dev"   # http://localhost:3000
 ```
 
 Requires `.env.local` with `TOOL_PASSWORD`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
@@ -149,10 +177,8 @@ python3 send.py --action campaign-detail --campaign-id <campaign_uuid>
 
 ## Archive Output
 
-- General sends/dry-runs: `archive/sent/YYYY-MM-DD_subject-slug.html`
-- Newsletter sends/dry-runs: `archive/newsletters/YYYY-MM-DD_subject-slug/`
-  - `rendered.html`
-  - `content.py`
+- Newsletter renders: `archives/{slug}/rendered.html` + `content.json`
+- Sent/test HTML snapshots: `archives/sent/YYYY-MM-DD_subject-slug.html`
 
 ## Notes
 
@@ -163,29 +189,10 @@ python3 send.py --action campaign-detail --campaign-id <campaign_uuid>
 
 ## DOCX Draft Workflow
 
-You can author each issue from a DOCX draft and generate a run-ready Python content file.
-
-Structure:
-
-- `newsletters/<edition-slug>/draft.docx`
-- `newsletters/<edition-slug>/assets/` (optional)
-- `newsletters/<edition-slug>/newsletter_content.py` (generated)
-
-Generate content file:
+Optional: author each issue from a DOCX draft.
 
 ```bash
 python3 tools/extract_newsletter_from_docx.py --edition-dir newsletters/<edition-slug>
 ```
 
-Then run as normal:
-
-```bash
-python3 send.py \
-  --template newsletter \
-  --subject "Issue Subject" \
-  --recipients tag:ACTIVE \
-  --content newsletters/<edition-slug>/newsletter_content.py \
-  --dry-run
-```
-
-See detailed heading format and section rules in `newsletters/README.md`.
+See `newsletters/README.md` for heading format and section rules.
