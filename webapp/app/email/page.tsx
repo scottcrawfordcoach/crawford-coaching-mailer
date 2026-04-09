@@ -59,6 +59,9 @@ export default function EmailPage() {
   const [previewing, setPreviewing] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
+  const [rightPanel, setRightPanel] = useState<"preview" | "links">("preview");
+  const [linkResults, setLinkResults] = useState<{ url: string; status: number | null; ok: boolean; error?: string }[]>([]);
+  const [checkingLinks, setCheckingLinks] = useState(false);
 
   // Layout
   const [leftWidth, setLeftWidth] = useState(520);
@@ -161,6 +164,7 @@ export default function EmailPage() {
 
   async function handlePreview() {
     setPreviewing(true);
+    setRightPanel("preview");
     try {
       const firstName =
         sendMode === "individual"
@@ -177,6 +181,39 @@ export default function EmailPage() {
       }
     } finally {
       setPreviewing(false);
+    }
+  }
+
+  async function handleCheckLinks() {
+    setCheckingLinks(true);
+    setRightPanel("links");
+    setLinkResults([]);
+    try {
+      const firstName =
+        sendMode === "individual"
+          ? selectedContacts[0]?.first_name ?? "there"
+          : "there";
+
+      const previewRes = await fetch("/api/email/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName, body: message }),
+      });
+      if (!previewRes.ok) return;
+      const html = await previewRes.text();
+      setPreviewHtml(html);
+
+      const res = await fetch("/api/check-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLinkResults(data.results ?? []);
+      }
+    } finally {
+      setCheckingLinks(false);
     }
   }
 
@@ -446,10 +483,17 @@ export default function EmailPage() {
             <div className="flex gap-3 pb-6">
               <button
                 onClick={handlePreview}
-                disabled={!canPreview || previewing}
+                disabled={!canPreview || previewing || checkingLinks}
                 className="btn-ghost disabled:opacity-40"
               >
                 {previewing ? "Rendering…" : "Preview"}
+              </button>
+              <button
+                onClick={handleCheckLinks}
+                disabled={!canPreview || checkingLinks || previewing}
+                className="btn-ghost disabled:opacity-40"
+              >
+                {checkingLinks ? "Checking…" : "Test Links"}
               </button>
               <button
                 onClick={handleSend}
@@ -480,9 +524,52 @@ export default function EmailPage() {
           className="w-1.5 cursor-col-resize bg-fog/30 hover:bg-brand-blue/40 transition-colors flex-shrink-0"
         />
 
-        {/* ── RIGHT: Preview ─────────────────────────────────── */}
+        {/* ── RIGHT: Preview or link results ─────────────────── */}
         <div className="flex-1 min-w-0" style={{ pointerEvents: isDragging ? "none" : undefined }}>
-          <PreviewPanel html={previewHtml} loading={previewing} />
+          {rightPanel === "links" ? (
+            <div className="w-full h-full overflow-y-auto font-sans text-sm p-4">
+              {checkingLinks ? (
+                <p className="text-mist">Rendering and checking links…</p>
+              ) : linkResults.length === 0 ? (
+                <p className="text-mist">No links found.</p>
+              ) : (
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="text-left text-xs text-mist border-b border-fog">
+                      <th className="py-2 pr-4 w-16">Status</th>
+                      <th className="py-2">URL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linkResults.map((r, i) => (
+                      <tr key={i} className="border-b border-fog/30">
+                        <td className="py-2 pr-4">
+                          <span className={`font-mono font-bold ${r.ok ? "text-green-400" : "text-red-400"}`}>
+                            {r.status ?? (r.error === "Timed out" ? "⏱" : "✗")}
+                          </span>
+                        </td>
+                        <td className="py-2 break-all">
+                          <a
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`hover:underline ${r.ok ? "text-pale" : "text-red-300"}`}
+                          >
+                            {r.url}
+                          </a>
+                          {r.error && !r.ok && (
+                            <span className="ml-2 text-xs text-mist">({r.error})</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : (
+            <PreviewPanel html={previewHtml} loading={previewing} />
+          )}
         </div>
       </div>
     </div>
