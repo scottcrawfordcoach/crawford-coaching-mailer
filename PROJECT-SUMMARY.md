@@ -177,7 +177,7 @@ The edge function also:
 
 | File | Role |
 |---|---|
-| `supabase/functions/mail-tracker/index.ts` | Handles open pixel (`?action=open`), click redirects (`?action=click`), unsubscribe confirmation (`?action=unsubscribe`) → writes to `campaign_events` |
+| `supabase/functions/mail-tracker/index.ts` | Handles open pixel (`?action=open`), unsubscribe confirmation (`?action=unsubscribe`) → writes to `campaign_events`. ~~Click redirect~~ removed (caused Gmail phishing flag). |
 
 ---
 
@@ -284,6 +284,10 @@ Canonical definition: `NewsletterContent` interface in `webapp/lib/templates.ts`
 
 **Migration 003 — Edition slug:**
 - Adds `edition_slug text nullable` to `sent_campaigns` — links a send to its Supabase Storage folder
+
+**Migration 004 — Resend event types:**
+- Widens `campaign_events.event_type` CHECK constraint to include `delivered`, `bounced`, `complained` (for Resend webhook compatibility; existing `open`, `click`, `unsubscribe` preserved)
+- Adds `resend_email_id text` to `campaign_recipients` for webhook cross-referencing
 
 ---
 
