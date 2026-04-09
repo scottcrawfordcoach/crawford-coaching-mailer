@@ -35,3 +35,6 @@ content/*.json
 # Reference/working files
 _issue-15-final.html
 issue-15-reference.html
+
+# Temp files
+email_temp.json
