@@ -91,18 +91,31 @@ function str(value: string | null | undefined): string {
   return (value ?? "").trim();
 }
 
-// Resolves a legacy relative image path (e.g. "assets/15-becoming-a-snacker/rx-bar.png")
-// to a proxied URL on app.crawford-coaching.ca so all image URLs in emails use the
-// trusted sending domain rather than the raw Supabase project subdomain.
-// Absolute URLs are returned unchanged.
+const SUPABASE_STORAGE_PREFIX = "storage/v1/object/public/";
+const PROXY_BASE = "https://app.crawford-coaching.ca/assets";
+
+// Resolves asset paths/URLs to proxied URLs on app.crawford-coaching.ca so all
+// image/audio URLs in emails use the trusted sending domain.
+// Handles:
+//   relative path: 'assets/{slug}/{filename}'
+//   absolute Supabase URL: 'https://*.supabase.co/storage/v1/object/public/{rest}'
+// Other absolute URLs are returned unchanged.
 function resolveImageSrc(image: string | null | undefined): string {
   const val = (image ?? "").trim();
-  if (!val || val.startsWith("http")) return val;
+  if (!val) return val;
+  // Rewrite absolute Supabase Storage URLs through the proxy
+  if (val.includes("supabase.co") && val.includes(SUPABASE_STORAGE_PREFIX)) {
+    const idx = val.indexOf(SUPABASE_STORAGE_PREFIX) + SUPABASE_STORAGE_PREFIX.length;
+    const storagePath = val.slice(idx);
+    return `${PROXY_BASE}/${storagePath}`;
+  }
+  // Pass other absolute URLs through unchanged
+  if (val.startsWith("http")) return val;
   // Pattern: assets/{slug}/{filename}  — extract last two segments
   const parts = val.replace(/\\/g, "/").split("/").filter(Boolean);
   const filename = parts[parts.length - 1] ?? "";
   const slug = parts[parts.length - 2] ?? "";
-  return `https://app.crawford-coaching.ca/assets/newsletters/${slug}/images/${filename}`;
+  return `${PROXY_BASE}/newsletters/${slug}/images/${filename}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -241,7 +254,7 @@ export function renderNewsletterPreview(data: Partial<NewsletterContent>, option
     INTRO_TAGLINE:   str(data.intro_tagline),
     INTRO_BODY:      richText(data.intro_body),
     FULL_BLOG_URL:   str(data.full_blog_url),
-    BLOGCAST_URL:    str(data.blogcast_url),
+    BLOGCAST_URL:    resolveImageSrc(data.blogcast_url),
     SUBSCRIBE_URL:   str(data.subscribe_url),
     // Food for the Body
     BODY_SUBTITLE:       str(body.subtitle),

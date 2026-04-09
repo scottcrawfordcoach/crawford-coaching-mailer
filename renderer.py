@@ -207,22 +207,40 @@ def _maybe_proofread(value: str, proofread: bool) -> str:
 # ── Image helpers ─────────────────────────────────────────────────────────────
 
 
+SUPABASE_STORAGE_PREFIX = "storage/v1/object/public/"
+PROXY_BASE = "https://app.crawford-coaching.ca/assets"
+
+
 def _resolve_image(path_or_url: str) -> str:
     """
-    Mirrors webapp's resolveImageSrc(). Converts a relative asset path such as
-    'assets/15-becoming-a-snacker/body-plate.png' to a proxied URL on
-    app.crawford-coaching.ca so all image URLs in emails use the trusted
-    sending domain rather than the raw Supabase project subdomain.
-    Absolute URLs (starting with 'http') are returned unchanged.
+    Converts asset paths/URLs to proxied URLs on app.crawford-coaching.ca so
+    all image/audio URLs in emails use the trusted sending domain.
+
+    Handles two formats:
+    1. Relative path: 'assets/15-becoming-a-snacker/body-plate.png'
+       → https://app.crawford-coaching.ca/assets/newsletters/{slug}/images/{filename}
+    2. Absolute Supabase Storage URL: 'https://*.supabase.co/storage/v1/object/public/{rest}'
+       → https://app.crawford-coaching.ca/assets/{rest}
+
+    Other absolute URLs are returned unchanged.
     """
     val = (path_or_url or "").strip()
-    if not val or val.startswith("http"):
+    if not val:
         return val
+    # Rewrite absolute Supabase Storage URLs through the proxy
+    if "supabase.co" in val and SUPABASE_STORAGE_PREFIX in val:
+        idx = val.index(SUPABASE_STORAGE_PREFIX) + len(SUPABASE_STORAGE_PREFIX)
+        storage_path = val[idx:]
+        return f"{PROXY_BASE}/{storage_path}"
+    # Pass other absolute URLs through unchanged
+    if val.startswith("http"):
+        return val
+    # Relative path: assets/{slug}/{filename}
     parts = val.replace("\\", "/").split("/")
     parts = [p for p in parts if p]
     filename = parts[-1] if parts else ""
     slug = parts[-2] if len(parts) >= 2 else ""
-    return f"https://app.crawford-coaching.ca/assets/newsletters/{slug}/images/{filename}"
+    return f"{PROXY_BASE}/newsletters/{slug}/images/{filename}"
 
 
 # ── Supabase Storage upload ──────────────────────────────────────────────────
@@ -776,7 +794,7 @@ def render_newsletter(
         "INTRO_TAGLINE": _str(intro.get("intro_tagline")),
         "INTRO_BODY": _rich_text(intro.get("intro_body")),
         "FULL_BLOG_URL": _str(intro.get("full_blog_url")),
-        "BLOGCAST_URL": _str(intro.get("blogcast_url")),
+        "BLOGCAST_URL": _resolve_image(_str(intro.get("blogcast_url"))),
         "SUBSCRIBE_URL": _str(intro.get("subscribe_url")),
         # Food for the Body
         "BODY_SUBTITLE": _maybe_proofread(_str(body.get("subtitle")), proofread),
