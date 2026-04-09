@@ -752,20 +752,8 @@ def render_newsletter(
     """
     data = load_content(content_path)
 
-    # ── Generate social sharing pages ────────────────────────────────────────
+    # ── Social sharing pages (disabled — revisit when share links are stable)
     slug = content_path.stem
-    if "ANTHROPIC_API_KEY" in os.environ:
-        try:
-            share_urls = _generate_share_pages(data, slug)
-            for section_key, url in share_urls.items():
-                if section_key in data and isinstance(data[section_key], dict):
-                    data[section_key]["share_url"] = url
-            print(f"  Social sharing pages generated for {len(share_urls)} sections")
-        except Exception as e:
-            print(f"  Warning: Social page generation failed: {e}")
-            print(f"  Continuing without share links.")
-    else:
-        print("  Skipping social page generation (no ANTHROPIC_API_KEY)")
 
     html = _load_template("newsletter")
 

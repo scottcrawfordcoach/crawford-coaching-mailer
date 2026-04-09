@@ -318,38 +318,8 @@ export default function EditionPage() {
     setNSending(true);
     setNSendResult(null);
 
-    // ── Generate share pages if any are missing ──────────────────────────
-    let varsToSend = form;
-    const sections = ["food_body", "food_thought", "food_brain", "food_soul"] as const;
-    const needsSharePages = sections.some(
-      (k) => { const s = form[k]; return s && s.copy && !s.share_url; },
-    );
-
-    if (needsSharePages) {
-      try {
-        setNSendResult("Generating share pages…");
-        const spRes = await fetch("/api/newsletter/share-pages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug, content: form }),
-        });
-        const spData = await spRes.json();
-        if (spRes.ok && spData.share_urls) {
-          // Merge share URLs into form data for the send
-          const merged = { ...form };
-          for (const sectionKey of sections) {
-            const url = (spData.share_urls as Record<string, string>)[sectionKey];
-            if (url && merged[sectionKey]) {
-              merged[sectionKey] = { ...merged[sectionKey], share_url: url };
-            }
-          }
-          varsToSend = merged;
-        }
-        // If share page generation fails, proceed without share links
-      } catch {
-        // Non-fatal — send without share links
-      }
-    }
+    // ── Social share pages disabled — revisit when share links are stable
+    const varsToSend = form;
 
     // ── Send the newsletter ─────────────────────────────────────────────
     setNSendResult(null);
