@@ -139,7 +139,7 @@ python send.py \
 
 | Mode | Syntax | Behaviour |
 |---|---|---|
-| All newsletter subscribers | `newsletter` | Queries `contacts` where `newsletter_enabled=true` AND `contact_status=active` |
+| All newsletter subscribers | `newsletter` | Queries `contacts` where `newsletter_enabled=true` AND `contact_status` IN (`active`, `previous_client`) |
 | By tag | `tag:ACTIVE` | Joins `contact_tags` |
 | By name | `name:Scott` | Fuzzy name search on contacts |
 | Manual emails | `a@b.com,c@d.com` | Parsed inline |
@@ -288,6 +288,24 @@ Canonical definition: `NewsletterContent` interface in `webapp/lib/templates.ts`
 **Migration 004 — Resend event types:**
 - Widens `campaign_events.event_type` CHECK constraint to include `delivered`, `bounced`, `complained` (for Resend webhook compatibility; existing `open`, `click`, `unsubscribe` preserved)
 - Adds `resend_email_id text` to `campaign_recipients` for webhook cross-referencing
+
+---
+
+## Newsletter Send Eligibility
+
+Canonical fields that determine whether a contact receives the newsletter:
+
+| Field | Table | Role |
+|---|---|
+| `newsletter_enabled` | `contacts` | **Primary send gate** — checked by `recipients.py` |
+| `contact_status` | `contacts` | Must be `active` OR `previous_client` |
+| `newsletter_status` | `contacts` | Mirror of enabled state; kept in sync |
+| `email_consent` | `contacts` | General email permission flag; kept in sync with `newsletter_enabled` for subscribed contacts |
+| `contact_subscriptions.newsletter` | `contact_subscriptions` | Future preference-centre / unsubscribe-link target; not currently read by `recipients.py` |
+
+The three marketing sub-types (`marketing_synergize`, `marketing_coaching`, `marketing_whole`) in `contact_subscriptions` are populated but not yet consumed by any send path.
+
+**Supabase is the source of truth.** `crm/contacts_master.csv` is a derived export — run `db_export.py` to refresh before querying locally.
 
 ---
 
