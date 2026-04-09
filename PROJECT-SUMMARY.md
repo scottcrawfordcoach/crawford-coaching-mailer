@@ -415,6 +415,7 @@ The following issues were identified pre-V2 and have been resolved:
 9. **Click tracking removed** — `mail-tracker` click redirect caused Gmail phishing flag; removed from edge function. Open pixel tracking retained.
 10. **Social share disabled for MVP** — `renderer.py` `_generate_share_pages()` call commented out; `needsSharePages` block removed from webapp send handler. `{{#if *_SHARE_URL}}` blocks naturally suppress share links when `share_url` is empty. Revisit when share links are stable.
 12. **Asset proxy** — new `/assets/[...path]` route proxies all Supabase Storage files through `app.crawford-coaching.ca`. `renderer.py`, `templates.ts`, and both HTML templates updated to use proxy URLs. Eliminates `*.supabase.co` subdomain from email image URLs (was causing 554 reputation bounces at some mail servers).
+13. **Static mail-assets in `webapp/public/`** — logo, icons, and credential badges moved from Supabase Storage to `webapp/public/mail-assets/`. Served directly by Vercel (`/mail-assets/...`). Templates updated to use direct URLs. `_resolve_image()` and `resolveImageSrc()` extended to also rewrite any absolute `*.supabase.co/storage/...` URL through the proxy — covers absolute image URLs in content JSON and `blogcast_url` audio files.
 
 ## Remaining Items
 
