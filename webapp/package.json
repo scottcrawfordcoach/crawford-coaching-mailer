@@ -6,7 +6,7 @@
     "node": "20.x"
   },
   "scripts": {
-    "sync-templates": "cp ../templates/newsletter.html ./templates/newsletter.html && cp ../templates/general.html ./templates/general.html",
+    "sync-templates": "[ -f ../templates/newsletter.html ] && cp ../templates/newsletter.html ./templates/newsletter.html; [ -f ../templates/general.html ] && cp ../templates/general.html ./templates/general.html; true",
     "predev": "npm run sync-templates",
     "prebuild": "npm run sync-templates",
     "dev": "next dev",
