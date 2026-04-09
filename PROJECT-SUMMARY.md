@@ -56,14 +56,16 @@ This is now superseded by the webapp editor. Field names match the current JSON 
 | `webapp/components/ImageUpload.tsx` | Drag-drop file upload component; fills image field on upload |
 | `webapp/app/api/assets/route.ts` | POST multipart → uploads to Supabase Storage `newsletters/{slug}/images/` → returns public URL |
 
-**Image path resolution** — relative paths like `assets/{slug}/{filename}` are converted to full Supabase URLs at render time by both renderers:
+**Image path resolution** — relative paths like `assets/{slug}/{filename}` are converted to proxied URLs on `app.crawford-coaching.ca` at render time by both renderers:
 
 - **Python:** `_resolve_image()` in `renderer.py`
 - **TypeScript:** `resolveImageSrc()` in `webapp/lib/templates.ts`
 
-Pattern: `assets/{slug}/{filename}` → `{SUPABASE_URL}/storage/v1/object/public/newsletters/{slug}/images/{filename}`
+Pattern: `assets/{slug}/{filename}` → `https://app.crawford-coaching.ca/assets/newsletters/{slug}/images/{filename}`
 
 Absolute `https://` URLs are passed through unchanged.
+
+> **Why the proxy?** Supabase Storage serves files under `*.supabase.co` project subdomains. Some institutional/corporate mail servers blocklist that domain as poor reputation. Routing all images through `app.crawford-coaching.ca/assets/...` puts every URL in the email on the verified sending domain.
 
 ---
 
@@ -382,6 +384,7 @@ Split-pane layout with resizable divider (same pattern as the edition editor):
 | `/api/email/send` | POST | Send email via mail-sender edge function |
 | `/api/check-links` | POST | Check all hrefs in rendered HTML, return HTTP status per link |
 | `/share/[slug]/[section]` | GET | Proxy: fetch Supabase Storage HTML, re-serve as `text/html` (workaround for Storage `text/plain` override) |
+| `/assets/[...path]` | GET | Proxy: fetch Supabase Storage file, re-serve with correct `Content-Type` (removes `*.supabase.co` URLs from emails) |
 
 ---
 
@@ -411,7 +414,7 @@ The following issues were identified pre-V2 and have been resolved:
 8. **DMARC** — `v=DMARC1; p=none; rua=mailto:scott@crawford-coaching.ca` added to DNS; verified via Google DNS API.
 9. **Click tracking removed** — `mail-tracker` click redirect caused Gmail phishing flag; removed from edge function. Open pixel tracking retained.
 10. **Social share disabled for MVP** — `renderer.py` `_generate_share_pages()` call commented out; `needsSharePages` block removed from webapp send handler. `{{#if *_SHARE_URL}}` blocks naturally suppress share links when `share_url` is empty. Revisit when share links are stable.
-11. **Test Links feature** — `/api/check-links` route + button on both editor pages; 405→GET retry; LinkedIn 999 treated as ok.
+12. **Asset proxy** — new `/assets/[...path]` route proxies all Supabase Storage files through `app.crawford-coaching.ca`. `renderer.py`, `templates.ts`, and both HTML templates updated to use proxy URLs. Eliminates `*.supabase.co` subdomain from email image URLs (was causing 554 reputation bounces at some mail servers).
 
 ## Remaining Items
 

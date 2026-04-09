@@ -141,6 +141,13 @@ The webapp needs `MAIL_SENDER_BEARER_TOKEN` in Vercel env vars (and optionally `
 - `v=DMARC1; p=none; rua=mailto:scott@crawford-coaching.ca` added to `_dmarc.crawford-coaching.ca`
 - Verified via Google DNS API
 
+### Asset proxy (fixes 554 reputation bounces)
+- New `webapp/app/assets/[...path]/route.ts` — proxies Supabase Storage files through `app.crawford-coaching.ca/assets/...` with correct `Content-Type` and 24h cache
+- `renderer.py` `_resolve_image()` and `webapp/lib/templates.ts` `resolveImageSrc()` now return proxy URLs instead of raw Supabase URLs
+- `templates/newsletter.html` + `templates/general.html` — all 8+7 hardcoded `mail-assets` Supabase URLs replaced with proxy URLs
+- Deployed: `https://app.crawford-coaching.ca/assets/mail-assets/cc-email-header.png` → 200 image/png ✓
+- Committed: `a18e975`
+
 ### Social share generation disabled for MVP
 - `renderer.py`: `_generate_share_pages()` call commented out
 - `webapp/app/editions/[slug]/page.tsx`: `needsSharePages` block removed from send handler
