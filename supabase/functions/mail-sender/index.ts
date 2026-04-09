@@ -67,8 +67,9 @@ function escapeHtml(str: string): string {
 // ---------------------------------------------------------------------------
 // Per-recipient HTML personalisation
 //
-// Replaces per-recipient placeholders, injects an open-tracking pixel,
-// and rewrites links to go through the mail-tracker click redirect.
+// Replaces per-recipient placeholders and injects an open-tracking pixel.
+// Links are NOT rewritten — Gmail flags redirect URLs through Supabase
+// edge functions as phishing. Click tracking relies on Resend native tracking.
 // ---------------------------------------------------------------------------
 
 function personaliseHtml(
@@ -89,17 +90,6 @@ function personaliseHtml(
   // Inject open-tracking pixel (1×1 transparent GIF served by mail-tracker)
   const openPixel = `<img src="${trackerBase}?action=open&r=${encodeURIComponent(recipientId)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
   out = out.replace("<!-- {{OPEN_PIXEL}} -->", openPixel);
-
-  // Rewrite links for click tracking (skip mailto:, tel:, unsubscribe, and tracker URLs)
-  out = out.replace(
-    /href="(https?:\/\/[^"]+)"/g,
-    (_match: string, url: string) => {
-      // Don't rewrite links that already point to the tracker
-      if (url.startsWith(trackerBase)) return `href="${url}"`;
-      const redirectUrl = `${trackerBase}?action=click&r=${encodeURIComponent(recipientId)}&url=${encodeURIComponent(url)}`;
-      return `href="${redirectUrl}"`;
-    },
-  );
 
   return out;
 }
