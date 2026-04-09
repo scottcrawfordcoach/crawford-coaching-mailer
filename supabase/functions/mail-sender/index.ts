@@ -17,6 +17,7 @@
  * Secrets required:
  *   supabase secrets set MAIL_SENDER_BEARER_TOKEN=<value>
  *   supabase secrets set RESEND_API_KEY=<resend_api_key>
+ *   supabase secrets set MAIL_TRACKER_BASE_URL=https://<project>.supabase.co/functions/v1/mail-tracker
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -66,26 +67,39 @@ function escapeHtml(str: string): string {
 // ---------------------------------------------------------------------------
 // Per-recipient HTML personalisation
 //
-// Resend handles open tracking and click tracking natively.
-// We only replace per-recipient placeholders: name, unsubscribe URL, year.
+// Replaces per-recipient placeholders, injects an open-tracking pixel,
+// and rewrites links to go through the mail-tracker click redirect.
 // ---------------------------------------------------------------------------
 
 function personaliseHtml(
   html: string,
   recipient: Recipient,
+  recipientId: string,
+  trackerBase: string,
 ): string {
   const firstName = recipient.first_name ?? "there";
   const year = new Date().getFullYear().toString();
-  const email = recipient.email.toLowerCase().trim();
-  const unsubscribeUrl = `https://crawford-coaching.ca/unsubscribe?email=${encodeURIComponent(email)}`;
+  const unsubscribeUrl = `${trackerBase}?action=unsubscribe&r=${encodeURIComponent(recipientId)}`;
 
   let out = html
     .replace(/\{\{FIRST_NAME\}\}/g, escapeHtml(firstName))
     .replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubscribeUrl)
     .replace(/\{\{CURRENT_YEAR\}\}/g, year);
 
-  // Remove open pixel placeholder � Resend injects its own
-  out = out.replace("<!-- {{OPEN_PIXEL}} -->", "");
+  // Inject open-tracking pixel (1×1 transparent GIF served by mail-tracker)
+  const openPixel = `<img src="${trackerBase}?action=open&r=${encodeURIComponent(recipientId)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
+  out = out.replace("<!-- {{OPEN_PIXEL}} -->", openPixel);
+
+  // Rewrite links for click tracking (skip mailto:, tel:, unsubscribe, and tracker URLs)
+  out = out.replace(
+    /href="(https?:\/\/[^"]+)"/g,
+    (_match: string, url: string) => {
+      // Don't rewrite links that already point to the tracker
+      if (url.startsWith(trackerBase)) return `href="${url}"`;
+      const redirectUrl = `${trackerBase}?action=click&r=${encodeURIComponent(recipientId)}&url=${encodeURIComponent(url)}`;
+      return `href="${redirectUrl}"`;
+    },
+  );
 
   return out;
 }
@@ -126,6 +140,10 @@ async function sendViaResend(params: {
       tags: [
         { name: "recipient_id", value: params.recipientId },
       ],
+      tracking: {
+        open: true,
+        click: true,
+      },
     }),
   });
 
@@ -196,13 +214,16 @@ async function sendCampaign(
     }
 
     const recipientId: string = recipientRow.id;
-    const email = recipient.email.toLowerCase().trim();
-    const unsubscribeUrl = `https://crawford-coaching.ca/unsubscribe?email=${encodeURIComponent(email)}`;
+    const trackerBase = Deno.env.get("MAIL_TRACKER_BASE_URL")
+      ?? `${Deno.env.get("SUPABASE_URL")}/functions/v1/mail-tracker`;
+    const unsubscribeUrl = `${trackerBase}?action=unsubscribe&r=${encodeURIComponent(recipientId)}`;
 
-    // Personalise HTML (no link rewriting — Resend handles tracking)
+    // Personalise HTML with open pixel + click tracking via mail-tracker
     const personalHtml = personaliseHtml(
       payload.html_body,
       recipient,
+      recipientId,
+      trackerBase,
     );
 
     // Send via Resend
