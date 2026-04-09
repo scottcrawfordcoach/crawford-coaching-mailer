@@ -67,9 +67,9 @@ function escapeHtml(str: string): string {
 // ---------------------------------------------------------------------------
 // Per-recipient HTML personalisation
 //
-// Replaces per-recipient placeholders and injects an open-tracking pixel.
-// Links are NOT rewritten — Gmail flags redirect URLs through Supabase
-// edge functions as phishing. Click tracking relies on Resend native tracking.
+// Replaces per-recipient placeholders, injects an open-tracking pixel,
+// and appends UTM parameters to crawford-coaching.ca links for analytics.
+// Links are NOT rewritten to redirects — Gmail flags those as phishing.
 // ---------------------------------------------------------------------------
 
 function personaliseHtml(
@@ -77,6 +77,7 @@ function personaliseHtml(
   recipient: Recipient,
   recipientId: string,
   trackerBase: string,
+  utmParams: { source: string; medium: string; campaign: string },
 ): string {
   const firstName = recipient.first_name ?? "there";
   const year = new Date().getFullYear().toString();
@@ -90,6 +91,18 @@ function personaliseHtml(
   // Inject open-tracking pixel (1×1 transparent GIF served by mail-tracker)
   const openPixel = `<img src="${trackerBase}?action=open&r=${encodeURIComponent(recipientId)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
   out = out.replace("<!-- {{OPEN_PIXEL}} -->", openPixel);
+
+  // Append UTM parameters to crawford-coaching.ca links for website analytics
+  const utmSuffix = `utm_source=${encodeURIComponent(utmParams.source)}&utm_medium=${encodeURIComponent(utmParams.medium)}&utm_campaign=${encodeURIComponent(utmParams.campaign)}`;
+  out = out.replace(
+    /href=(["'])(https?:\/\/(?:www\.)?crawford-coaching\.ca[^"']*)\1/g,
+    (_match: string, quote: string, url: string) => {
+      // Don't tag the tracker unsubscribe URL
+      if (url.includes("mail-tracker")) return `href=${quote}${url}${quote}`;
+      const sep = url.includes("?") ? "&" : "?";
+      return `href=${quote}${url}${sep}${utmSuffix}${quote}`;
+    },
+  );
 
   return out;
 }
@@ -208,12 +221,19 @@ async function sendCampaign(
       ?? `${Deno.env.get("SUPABASE_URL")}/functions/v1/mail-tracker`;
     const unsubscribeUrl = `${trackerBase}?action=unsubscribe&r=${encodeURIComponent(recipientId)}`;
 
-    // Personalise HTML with open pixel + click tracking via mail-tracker
+    // Personalise HTML with open pixel + UTM tagging
+    const utmCampaign = payload.edition_slug ?? payload.subject
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const personalHtml = personaliseHtml(
       payload.html_body,
       recipient,
       recipientId,
       trackerBase,
+      {
+        source: payload.campaign_type,  // "newsletter" or "general"
+        medium: "email",
+        campaign: utmCampaign,
+      },
     );
 
     // Send via Resend
