@@ -1,7 +1,7 @@
 # Crawford Coaching Mailer — Handoff
 
 **Last updated:** April 9, 2026
-**Context:** Webapp deployed to app.crawford-coaching.ca. DMARC set. Test Links feature added. Social share generation disabled for MVP. Documentation updated. `TOOL_PASSWORD` still needs to be set in Vercel.
+**Context:** Webapp deployed to app.crawford-coaching.ca. DMARC set. Test Links feature added. Social share disabled for MVP. All `supabase.co` URLs eliminated from emails (asset proxy + public mail-assets). `TOOL_PASSWORD` still needs to be set in Vercel.
 
 ---
 
@@ -141,12 +141,34 @@ The webapp needs `MAIL_SENDER_BEARER_TOKEN` in Vercel env vars (and optionally `
 - `v=DMARC1; p=none; rua=mailto:scott@crawford-coaching.ca` added to `_dmarc.crawford-coaching.ca`
 - Verified via Google DNS API
 
-### Asset proxy (fixes 554 reputation bounces)
-- New `webapp/app/assets/[...path]/route.ts` — proxies Supabase Storage files through `app.crawford-coaching.ca/assets/...` with correct `Content-Type` and 24h cache
-- `renderer.py` `_resolve_image()` and `webapp/lib/templates.ts` `resolveImageSrc()` now return proxy URLs instead of raw Supabase URLs
-- `templates/newsletter.html` + `templates/general.html` — all 8+7 hardcoded `mail-assets` Supabase URLs replaced with proxy URLs
-- Deployed: `https://app.crawford-coaching.ca/assets/mail-assets/cc-email-header.png` → 200 image/png ✓
-- Committed: `a18e975`
+### Asset proxy + public mail-assets (fixes 554 reputation bounces)
+
+Root cause: raw `supabase.co` project subdomain URLs in emails triggered corporate mail server blocklists ("poor reputation of a domain used in message transfer").
+
+**Static brand assets → `webapp/public/mail-assets/`** (Phase 2, `960c90e`):
+- 8 files (logo, header, badges, social icons) downloaded from Supabase Storage and committed to `webapp/public/mail-assets/`
+- Served directly by Vercel at `https://app.crawford-coaching.ca/mail-assets/...` — no proxy needed
+- `templates/newsletter.html` + `templates/general.html` — all hardcoded `supabase.co/mail-assets/` URLs replaced with `/mail-assets/...`
+- Verified: `https://app.crawford-coaching.ca/mail-assets/cc-logo-dark.png` → 200 image/png, x-vercel-cache: HIT ✓
+
+**Dynamic content → asset proxy** (Phase 1, `a18e975`):
+- New `webapp/app/assets/[...path]/route.ts` — proxies any Supabase Storage file through `app.crawford-coaching.ca/assets/...` with correct `Content-Type` and 24h cache
+- Used for per-edition newsletter images and `blogcast_url` audio
+
+**`_resolve_image()` / `resolveImageSrc()` updated** (both renderers):
+- **Absolute `supabase.co/storage/v1/object/public/` URLs** → rewritten to `https://app.crawford-coaching.ca/assets/{rest}` (covers absolute image refs in content JSON and `blogcast_url`)
+- **Relative paths** → `https://app.crawford-coaching.ca/assets/newsletters/{slug}/images/{filename}`
+- **Other absolute URLs** → passed through unchanged
+- `BLOGCAST_URL` now routed through `_resolve_image()` / `resolveImageSrc()` (previously passed as-is)
+
+**Result:** Zero `supabase.co` subdomain URLs appear in any outbound email.
+
+### `supabase/functions/share-page/` — dormant
+- Written and committed to repo but never deployed
+- The webapp route `GET /share/[slug]/[section]` already handles share pages live — the Edge Function is redundant
+- Leave dormant; revisit if the webapp route ever needs to be replaced
+
+---
 
 ### Social share generation disabled for MVP
 - `renderer.py`: `_generate_share_pages()` call commented out

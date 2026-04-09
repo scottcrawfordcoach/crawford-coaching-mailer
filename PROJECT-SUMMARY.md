@@ -56,16 +56,19 @@ This is now superseded by the webapp editor. Field names match the current JSON 
 | `webapp/components/ImageUpload.tsx` | Drag-drop file upload component; fills image field on upload |
 | `webapp/app/api/assets/route.ts` | POST multipart → uploads to Supabase Storage `newsletters/{slug}/images/` → returns public URL |
 
-**Image path resolution** — relative paths like `assets/{slug}/{filename}` are converted to proxied URLs on `app.crawford-coaching.ca` at render time by both renderers:
+**Image path resolution** — paths are converted to final URLs by both renderers at render time:
 
 - **Python:** `_resolve_image()` in `renderer.py`
 - **TypeScript:** `resolveImageSrc()` in `webapp/lib/templates.ts`
 
-Pattern: `assets/{slug}/{filename}` → `https://app.crawford-coaching.ca/assets/newsletters/{slug}/images/{filename}`
+Resolution order:
+1. **Absolute `supabase.co/storage/v1/object/public/` URL** → rewritten to `https://app.crawford-coaching.ca/assets/{rest}` (covers content JSON images and `blogcast_url` audio)
+2. **Other absolute `https://` URL** → passed through unchanged
+3. **Relative path** → `https://app.crawford-coaching.ca/assets/newsletters/{slug}/images/{filename}`
 
-Absolute `https://` URLs are passed through unchanged.
+`BLOGCAST_URL` is routed through the same resolver in both renderers.
 
-> **Why the proxy?** Supabase Storage serves files under `*.supabase.co` project subdomains. Some institutional/corporate mail servers blocklist that domain as poor reputation. Routing all images through `app.crawford-coaching.ca/assets/...` puts every URL in the email on the verified sending domain.
+> **Why the proxy?** Supabase Storage serves files under `*.supabase.co` project subdomains. Some institutional/corporate mail servers blocklist that domain as poor reputation. Routing all dynamic images and audio through `app.crawford-coaching.ca/assets/...` puts every URL in the email on the verified sending domain. Static brand assets (logo, badges, social icons) are served directly from Vercel at `/mail-assets/...` (see `webapp/public/mail-assets/`).
 
 ---
 
@@ -334,7 +337,7 @@ The three marketing sub-types (`marketing_synergize`, `marketing_coaching`, `mar
 
 **One-off customisation pattern:** `render-jasu-reply.py` demonstrates how to render a general email with custom tweaks (greeting style change, unsubscribe removal, icon URL remapping). This can be adapted for future one-off sends.
 
-**Mail assets:** Social icons use `-dark` suffix filenames in Supabase Storage (`icon-facebook-dark.png`, `icon-instagram-dark.png`, `icon-linkedin-dark.png`). Badges and logo use their standard names.
+**Mail assets:** 8 static brand files (logo, header, badges, social icons) are in `webapp/public/mail-assets/`, served directly by Vercel at `https://app.crawford-coaching.ca/mail-assets/...`. These were migrated out of Supabase Storage to avoid `supabase.co` URLs in outbound email.
 
 ---
 

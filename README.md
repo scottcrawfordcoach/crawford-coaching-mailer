@@ -18,6 +18,8 @@ Hybrid local workflow: Python CLI for composition/orchestration, Next.js webapp 
 - Edition listing with send analytics (opens, clicks, unsubs)
 - **Test Links** button on both editor pages — checks all hrefs in rendered HTML, reports HTTP status codes
 - Share page proxy at `/share/[slug]/[section]` — serves Supabase HTML with correct `Content-Type` (disabled at send time for MVP)
+- Asset proxy at `/assets/[...path]` — proxies dynamic Supabase Storage files (newsletter images, audio) through `app.crawford-coaching.ca` to eliminate `supabase.co` URLs from emails
+- Static brand assets (`webapp/public/mail-assets/`) served directly at `/mail-assets/...` — logo, header, badges, social icons
 
 **Infrastructure:**
 - `supabase/functions/mail-sender/` — send campaigns via Gmail SMTP, per-recipient personalisation, open tracking injection
@@ -75,6 +77,7 @@ python3 -m pip install -r requirements.txt
 ## Deliverability Notes
 
 - **DMARC** — `v=DMARC1; p=none; rua=mailto:scott@crawford-coaching.ca` set on `_dmarc.crawford-coaching.ca`
+- **`supabase.co` URLs eliminated** — static brand assets served from Vercel at `/mail-assets/...`; dynamic newsletter images and `blogcast_url` audio proxied through `/assets/...`; absolute `supabase.co/storage/...` URLs in content JSON are auto-rewritten at render time by both renderers
 - **Click tracking removed** — caused Gmail phishing flag; open pixel tracking retained
 - **UTM parameters** — added to all `crawford-coaching.ca` links at send time
 - **Avoid short URLs** — use `youtube.com/watch?v=...` not `youtu.be/...`; full Amazon URLs not `a.co/...`
