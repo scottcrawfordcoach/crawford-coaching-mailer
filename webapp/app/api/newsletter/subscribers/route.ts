@@ -13,7 +13,7 @@ export async function GET() {
     .from("contacts")
     .select("id, email, first_name, last_name")
     .eq("newsletter_enabled", true)
-    .eq("contact_status", "active")
+    .in("contact_status", ["active", "previous_client"])
     .not("email", "is", null)
     .order("first_name");
 

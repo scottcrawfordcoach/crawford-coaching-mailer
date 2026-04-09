@@ -66,7 +66,7 @@ def _newsletter_contacts(settings: Settings) -> list[Recipient]:
         sb.table("contacts")
         .select("id, email, first_name")
         .eq("newsletter_enabled", True)
-        .eq("contact_status", "active")
+        .in_("contact_status", ["active", "previous_client"])
         .not_.is_("email", "null")
         .execute()
     )
