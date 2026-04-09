@@ -507,8 +507,12 @@ def _generate_share_pages(
         supabase_path_html = f"{slug}/socials/{filename}.html"
         supabase_path_txt = f"{slug}/socials/{filename}.txt"
 
-        url = _upload_to_supabase("newsletters", supabase_path_html, page_html, "text/html")
+        _upload_to_supabase("newsletters", supabase_path_html, page_html, "text/html")
         _upload_to_supabase("newsletters", supabase_path_txt, post_text, "text/plain")
+
+        # Use webapp proxy URL so the browser renders HTML properly
+        # (Supabase Storage won't serve HTML with correct Content-Type)
+        url = f"https://crawford-coaching.ca/share/{slug}/{filename}"
 
         share_urls[section_key] = url
         print(f"    → {url}")

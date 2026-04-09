@@ -274,10 +274,12 @@ export async function POST(req: NextRequest) {
     const htmlPath = `${slug}/socials/${filename}.html`;
     const txtPath = `${slug}/socials/${filename}.txt`;
 
-    const url = await uploadToSupabase("newsletters", htmlPath, pageHtml, "text/html");
+    await uploadToSupabase("newsletters", htmlPath, pageHtml, "text/html");
     await uploadToSupabase("newsletters", txtPath, postText, "text/plain");
 
-    shareUrls[sectionKey] = url;
+    // Use webapp proxy URL so browsers render HTML properly
+    // (Supabase Storage won't serve HTML with correct Content-Type)
+    shareUrls[sectionKey] = `https://crawford-coaching.ca/share/${slug}/${filename}`;
   }
 
   return NextResponse.json({ share_urls: shareUrls });
