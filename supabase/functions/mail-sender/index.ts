@@ -92,15 +92,28 @@ function personaliseHtml(
   const openPixel = `<img src="${trackerBase}?action=open&r=${encodeURIComponent(recipientId)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
   out = out.replace("<!-- {{OPEN_PIXEL}} -->", openPixel);
 
-  // Append UTM parameters to crawford-coaching.ca links for website analytics
+  // Rewrite all http/https links through the click tracker.
+  // For crawford-coaching.ca links, UTM params are baked into the destination
+  // URL before encoding so both Supabase and Google Analytics receive the hit.
   const utmSuffix = `utm_source=${encodeURIComponent(utmParams.source)}&utm_medium=${encodeURIComponent(utmParams.medium)}&utm_campaign=${encodeURIComponent(utmParams.campaign)}`;
+  const rParam = encodeURIComponent(recipientId);
   out = out.replace(
-    /href=(["'])(https?:\/\/(?:www\.)?crawford-coaching\.ca[^"']*)\1/g,
+    /href=(["'])(https?:\/\/[^"']+)\1/g,
     (_match: string, quote: string, url: string) => {
-      // Don't tag the tracker unsubscribe URL
+      // Leave already-wrapped tracker URLs alone (e.g. unsubscribe link)
       if (url.includes("mail-tracker")) return `href=${quote}${url}${quote}`;
-      const sep = url.includes("?") ? "&" : "?";
-      return `href=${quote}${url}${sep}${utmSuffix}${quote}`;
+      // Skip mailto: and tel: — already excluded by the https?:// pattern,
+      // but guard here in case the regex is widened in future.
+
+      // Append UTM params to crawford-coaching.ca destination URLs
+      let destination = url;
+      if (/https?:\/\/(?:www\.)?crawford-coaching\.ca/i.test(url)) {
+        const sep = url.includes("?") ? "&" : "?";
+        destination = `${url}${sep}${utmSuffix}`;
+      }
+
+      const clickUrl = `${trackerBase}?action=click&r=${rParam}&url=${encodeURIComponent(destination)}`;
+      return `href=${quote}${clickUrl}${quote}`;
     },
   );
 
