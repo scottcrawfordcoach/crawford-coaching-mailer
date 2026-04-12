@@ -42,8 +42,7 @@ export default function EmailPage() {
   const [searching, setSearching] = useState(false);
 
   // Group mode state
-  const [tagCategory, setTagCategory] = useState<TagCategory>("program");
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [tagsByCategory, setTagsByCategory] = useState<Record<string, string[]>>({});
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [contactStatus, setContactStatus] = useState("");
   const [groupCount, setGroupCount] = useState<number | null>(null);
@@ -59,7 +58,7 @@ export default function EmailPage() {
   const [previewing, setPreviewing] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
-  const [rightPanel, setRightPanel] = useState<"preview" | "links">("preview");
+  const [rightPanel, setRightPanel] = useState<"preview" | "links" | "recipients">("preview");
   const [linkResults, setLinkResults] = useState<{ url: string; status: number | null; ok: boolean; error?: string }[]>([]);
   const [checkingLinks, setCheckingLinks] = useState(false);
 
@@ -107,27 +106,29 @@ export default function EmailPage() {
     setSelectedContacts((prev) => prev.filter((c) => c.id !== id));
   }
 
-  // ── Load tags when category changes (Group mode) ──────────────────────
+  // ── Load all tag categories when entering group mode ────────────────
 
   useEffect(() => {
     if (sendMode !== "group") return;
     setSelectedTags([]);
     setGroupCount(null);
+    setTagsByCategory({});
 
     (async () => {
       try {
-        const res = await fetch(
-          `/api/contacts/tags?category=${encodeURIComponent(tagCategory)}`,
+        const results = await Promise.all(
+          TAG_CATEGORIES.map(async (cat) => {
+            const res = await fetch(`/api/contacts/tags?category=${cat}`);
+            const data = res.ok ? await res.json() : {};
+            return [cat, (data.tags ?? []) as string[]] as const;
+          }),
         );
-        if (res.ok) {
-          const data = await res.json();
-          setAvailableTags(data.tags ?? []);
-        }
+        setTagsByCategory(Object.fromEntries(results));
       } catch {
-        setAvailableTags([]);
+        setTagsByCategory({});
       }
     })();
-  }, [tagCategory, sendMode]);
+  }, [sendMode]);
 
   // ── Resolve group recipients when tags/status change ──────────────────
 
@@ -382,51 +383,48 @@ export default function EmailPage() {
             {sendMode === "group" && (
               <div className="space-y-4">
                 <div>
-                  <label className="label">Tag category</label>
-                  <select
-                    className="field"
-                    value={tagCategory}
-                    onChange={(e) =>
-                      setTagCategory(e.target.value as TagCategory)
-                    }
-                  >
-                    {TAG_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
                   <label className="label">Tags</label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableTags.map((tag) => {
-                      const selected = selectedTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          onClick={() =>
-                            setSelectedTags((prev) =>
-                              selected
-                                ? prev.filter((t) => t !== tag)
-                                : [...prev, tag],
-                            )
-                          }
-                          className={`chip cursor-pointer transition-colors ${
-                            selected
-                              ? "border-brand-blue text-white bg-brand-blue/20"
-                              : "hover:border-brand-blue"
-                          }`}
-                        >
-                          {tag}
-                        </button>
-                      );
-                    })}
-                    {availableTags.length === 0 && (
-                      <p className="text-mist text-xs">No tags found</p>
-                    )}
-                  </div>
+                  {Object.keys(tagsByCategory).length === 0 ? (
+                    <p className="text-mist text-xs">Loading tags…</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {TAG_CATEGORIES.map((cat) => {
+                        const tags = tagsByCategory[cat] ?? [];
+                        if (tags.length === 0) return null;
+                        return (
+                          <div key={cat}>
+                            <p className="text-xs text-mist uppercase tracking-wider mb-1.5">
+                              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {tags.map((tag) => {
+                                const selected = selectedTags.includes(tag);
+                                return (
+                                  <button
+                                    key={tag}
+                                    onClick={() =>
+                                      setSelectedTags((prev) =>
+                                        selected
+                                          ? prev.filter((t) => t !== tag)
+                                          : [...prev, tag],
+                                      )
+                                    }
+                                    className={`chip cursor-pointer transition-colors ${
+                                      selected
+                                        ? "border-brand-blue text-white bg-brand-blue/20"
+                                        : "hover:border-brand-blue"
+                                    }`}
+                                  >
+                                    {tag}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -495,6 +493,15 @@ export default function EmailPage() {
               >
                 {checkingLinks ? "Checking…" : "Test Links"}
               </button>
+              {sendMode === "group" && (
+                <button
+                  onClick={() => setRightPanel("recipients")}
+                  disabled={recipients.length === 0}
+                  className="btn-ghost disabled:opacity-40"
+                >
+                  Show Recipients
+                </button>
+              )}
               <button
                 onClick={handleSend}
                 disabled={!canSend || sending}
@@ -524,9 +531,35 @@ export default function EmailPage() {
           className="w-1.5 cursor-col-resize bg-fog/30 hover:bg-brand-blue/40 transition-colors flex-shrink-0"
         />
 
-        {/* ── RIGHT: Preview or link results ─────────────────── */}
+        {/* ── RIGHT: Preview, link results, or recipients ────── */}
         <div className="flex-1 min-w-0" style={{ pointerEvents: isDragging ? "none" : undefined }}>
-          {rightPanel === "links" ? (
+          {rightPanel === "recipients" ? (
+            <div className="w-full h-full overflow-y-auto font-sans text-sm p-4">
+              <p className="text-xs text-mist uppercase tracking-wider mb-3">
+                {recipients.length} recipient{recipients.length !== 1 ? "s" : ""}
+              </p>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="text-left text-xs text-mist border-b border-fog">
+                    <th className="py-2 pr-4">Name</th>
+                    <th className="py-2">Email</th>
+                    <th className="py-2 pl-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recipients.map((c) => (
+                    <tr key={c.id} className="border-b border-fog/30">
+                      <td className="py-2 pr-4 text-pale whitespace-nowrap">
+                        {c.first_name} {c.last_name}
+                      </td>
+                      <td className="py-2 text-mist break-all">{c.email}</td>
+                      <td className="py-2 pl-4 text-mist whitespace-nowrap">{c.contact_status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : rightPanel === "links" ? (
             <div className="w-full h-full overflow-y-auto font-sans text-sm p-4">
               {checkingLinks ? (
                 <p className="text-mist">Rendering and checking links…</p>
