@@ -48,6 +48,13 @@ export default function EmailPage() {
   const [groupCount, setGroupCount] = useState<number | null>(null);
   const [groupRecipients, setGroupRecipients] = useState<Contact[]>([]);
   const [loadingGroup, setLoadingGroup] = useState(false);
+  // Manual overrides
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+  const [addedContacts, setAddedContacts] = useState<Contact[]>([]);
+  const [addSearchQuery, setAddSearchQuery] = useState("");
+  const [addSearchResults, setAddSearchResults] = useState<Contact[]>([]);
+  const [addSearching, setAddSearching] = useState(false);
+  const addSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Email content
   const [subject, setSubject] = useState("");
@@ -136,8 +143,13 @@ export default function EmailPage() {
     if (sendMode !== "group" || selectedTags.length === 0) {
       setGroupCount(null);
       setGroupRecipients([]);
+      setRemovedIds(new Set());
+      setAddedContacts([]);
       return;
     }
+    // Reset overrides when filter changes
+    setRemovedIds(new Set());
+    setAddedContacts([]);
 
     setLoadingGroup(true);
     const params = new URLSearchParams();
@@ -221,8 +233,6 @@ export default function EmailPage() {
   // ── Send ──────────────────────────────────────────────────────────────
 
   async function handleSend() {
-    const recipients =
-      sendMode === "individual" ? selectedContacts : groupRecipients;
     if (recipients.length === 0 || !subject.trim() || !message.trim()) return;
 
     const ok = window.confirm(
@@ -282,8 +292,13 @@ export default function EmailPage() {
 
   // ── Validation ────────────────────────────────────────────────────────
 
+  const effectiveGroupRecipients: Contact[] = [
+    ...groupRecipients.filter((c) => !removedIds.has(c.id)),
+    ...addedContacts.filter((c) => !groupRecipients.some((r) => r.id === c.id) || removedIds.has(c.id)),
+  ];
+
   const recipients =
-    sendMode === "individual" ? selectedContacts : groupRecipients;
+    sendMode === "individual" ? selectedContacts : effectiveGroupRecipients;
   const canPreview = message.trim().length > 0;
   const canSend =
     recipients.length > 0 && subject.trim().length > 0 && message.trim().length > 0;
@@ -534,30 +549,101 @@ export default function EmailPage() {
         {/* ── RIGHT: Preview, link results, or recipients ────── */}
         <div className="flex-1 min-w-0" style={{ pointerEvents: isDragging ? "none" : undefined }}>
           {rightPanel === "recipients" ? (
-            <div className="w-full h-full overflow-y-auto font-sans text-sm p-4">
-              <p className="text-xs text-mist uppercase tracking-wider mb-3">
-                {recipients.length} recipient{recipients.length !== 1 ? "s" : ""}
-              </p>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="text-left text-xs text-mist border-b border-fog">
-                    <th className="py-2 pr-4">Name</th>
-                    <th className="py-2">Email</th>
-                    <th className="py-2 pl-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recipients.map((c) => (
-                    <tr key={c.id} className="border-b border-fog/30">
-                      <td className="py-2 pr-4 text-pale whitespace-nowrap">
-                        {c.first_name} {c.last_name}
-                      </td>
-                      <td className="py-2 text-mist break-all">{c.email}</td>
-                      <td className="py-2 pl-4 text-mist whitespace-nowrap">{c.contact_status}</td>
+            <div className="w-full h-full flex flex-col font-sans text-sm">
+              {/* Add contact search */}
+              <div className="p-4 border-b border-fog flex-shrink-0">
+                <p className="text-xs text-mist uppercase tracking-wider mb-2">Add contact</p>
+                <input
+                  className="field text-sm"
+                  type="text"
+                  placeholder="Search by name or email…"
+                  value={addSearchQuery}
+                  onChange={(e) => {
+                    const q = e.target.value;
+                    setAddSearchQuery(q);
+                    setAddSearchResults([]);
+                    if (addSearchTimer.current) clearTimeout(addSearchTimer.current);
+                    if (q.length < 2) return;
+                    addSearchTimer.current = setTimeout(async () => {
+                      setAddSearching(true);
+                      try {
+                        const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}`);
+                        if (res.ok) {
+                          const data = await res.json();
+                          setAddSearchResults(data.contacts ?? []);
+                        }
+                      } finally {
+                        setAddSearching(false);
+                      }
+                    }, 300);
+                  }}
+                />
+                {addSearching && <p className="text-mist text-xs mt-1">Searching…</p>}
+                {addSearchResults.length > 0 && (
+                  <div className="mt-1 bg-slate-mid border border-fog rounded max-h-32 overflow-y-auto">
+                    {addSearchResults.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          setAddedContacts((prev) =>
+                            prev.find((p) => p.id === c.id) ? prev : [...prev, c],
+                          );
+                          setRemovedIds((prev) => {
+                            const next = new Set(prev);
+                            next.delete(c.id);
+                            return next;
+                          });
+                          setAddSearchQuery("");
+                          setAddSearchResults([]);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-pale hover:bg-slate transition-colors"
+                      >
+                        {c.first_name} {c.last_name}{" "}
+                        <span className="text-mist">({c.email})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Recipient list */}
+              <div className="flex-1 overflow-y-auto p-4">
+                <p className="text-xs text-mist uppercase tracking-wider mb-3">
+                  {recipients.length} recipient{recipients.length !== 1 ? "s" : ""}
+                </p>
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="text-left text-xs text-mist border-b border-fog">
+                      <th className="py-2 pr-2 w-5"></th>
+                      <th className="py-2 pr-4">Name</th>
+                      <th className="py-2">Email</th>
+                      <th className="py-2 pl-4">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {recipients.map((c) => (
+                      <tr key={c.id} className="border-b border-fog/30 group">
+                        <td className="py-2 pr-2">
+                          <button
+                            onClick={() => {
+                              setRemovedIds((prev) => new Set([...prev, c.id]));
+                              setAddedContacts((prev) => prev.filter((a) => a.id !== c.id));
+                            }}
+                            className="text-mist hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity leading-none"
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4 text-pale whitespace-nowrap">
+                          {c.first_name} {c.last_name}
+                        </td>
+                        <td className="py-2 text-mist break-all">{c.email}</td>
+                        <td className="py-2 pl-4 text-mist whitespace-nowrap">{c.contact_status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : rightPanel === "links" ? (
             <div className="w-full h-full overflow-y-auto font-sans text-sm p-4">
