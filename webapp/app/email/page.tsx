@@ -625,7 +625,7 @@ export default function EmailPage() {
                         <td className="py-2 pr-2">
                           <button
                             onClick={() => {
-                              setRemovedIds((prev) => new Set([...prev, c.id]));
+                              setRemovedIds((prev) => { const s = new Set(prev); s.add(c.id); return s; });
                               setAddedContacts((prev) => prev.filter((a) => a.id !== c.id));
                             }}
                             className="text-mist hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity leading-none"
